@@ -5,7 +5,6 @@ using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.Infrastructure;
 using LinkDotNet.Blog.Infrastructure.Persistence;
 using LinkDotNet.Blog.TestUtilities;
-using LinkDotNet.Blog.Web;
 using LinkDotNet.Blog.Web.Features.AboutMe.Components;
 using LinkDotNet.Blog.Web.Features.Components;
 using LinkDotNet.Blog.Web.Features.Services;
@@ -13,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Shared;
 
-public class ProfileTests : TestContext
+public class ProfileTests : BunitContext
 {
     [Fact]
     public void ShouldRenderAllItemsSortedByOrder()
@@ -22,46 +21,45 @@ public class ProfileTests : TestContext
         var entry2 = new ProfileInformationEntryBuilder().WithContent("key 2").WithSortOrder(2).Build();
         var (repoMock, _) = RegisterServices();
         SetupGetAll(repoMock, entry1, entry2);
-        var cut = RenderComponent<Profile>();
+        var cut = RenderProfileWithEmptyInformation();
 
         var items = cut.FindAll(".profile-keypoints li");
 
-        items.Should().HaveCount(2);
-        items[0].TextContent.Should().Contain("key 1");
-        items[1].TextContent.Should().Contain("key 2");
+        items.Count.ShouldBe(2);
+        items[0].TextContent.ShouldContain("key 1");
+        items[1].TextContent.ShouldContain("key 2");
     }
 
     [Fact]
     public void ShouldNotShowAdminActions()
     {
         RegisterServices();
-        RenderComponent<Profile>().FindComponents<AddProfileShortItem>().Should().HaveCount(0);
+        RenderProfileWithEmptyInformation().FindComponents<AddProfileShortItem>().ShouldBeEmpty();
     }
 
     [Fact]
     public void ShouldShowAdminActionsWhenLoggedIn()
     {
         RegisterServices();
-        RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true))
-            .FindComponents<AddProfileShortItem>().Should().HaveCount(1);
+        RenderProfileInAdmin().FindComponents<AddProfileShortItem>().ShouldHaveSingleItem();
     }
 
     [Fact]
     public void ShouldAddEntry()
     {
         var (repo, _) = RegisterServices();
-        ProfileInformationEntry entryToDb = null;
-        repo.Setup(p => p.StoreAsync(It.IsAny<ProfileInformationEntry>()))
-            .Callback<ProfileInformationEntry>(p => entryToDb = p);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
+        ProfileInformationEntry? entryToDb = null;
+        repo.When(r => r.StoreAsync(Arg.Any<ProfileInformationEntry>()))
+            .Do(call => entryToDb = call.Arg<ProfileInformationEntry>());
+        var cut = RenderProfileInAdmin();
         var addShortItemComponent = cut.FindComponent<AddProfileShortItem>();
         addShortItemComponent.Find("input").Change("key");
 
         addShortItemComponent.Find("button").Click();
 
-        entryToDb.Should().NotBeNull();
-        entryToDb.Content.Should().Be("key");
-        entryToDb.SortOrder.Should().Be(1000);
+        entryToDb.ShouldNotBeNull();
+        entryToDb.Content.ShouldBe("key");
+        entryToDb.SortOrder.ShouldBe(1000);
     }
 
     [Fact]
@@ -71,12 +69,13 @@ public class ProfileTests : TestContext
         entryToDelete.Id = "SomeId";
         var (repoMock, _) = RegisterServices();
         SetupGetAll(repoMock, entryToDelete);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
+        var cut = RenderProfileInAdmin();
         cut.Find(".profile-keypoints li button").Click();
 
         cut.FindComponent<ConfirmDialog>().Find("#ok").Click();
 
-        repoMock.Verify(r => r.DeleteAsync("SomeId"), Times.Once);
+        repoMock.Received(1).DeleteAsync("SomeId");
+
     }
 
     [Fact]
@@ -86,12 +85,13 @@ public class ProfileTests : TestContext
         entryToDelete.Id = "SomeId";
         var (repoMock, _) = RegisterServices();
         SetupGetAll(repoMock, entryToDelete);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
+        var cut = RenderProfileInAdmin();
         cut.Find(".profile-keypoints li button").Click();
 
         cut.FindComponent<ConfirmDialog>().Find("#cancel").Click();
 
-        repoMock.Verify(r => r.DeleteAsync("SomeId"), Times.Never);
+        repoMock.Received(0).DeleteAsync("SomeId");
+
     }
 
     [Fact]
@@ -100,18 +100,18 @@ public class ProfileTests : TestContext
         var (repo, _) = RegisterServices();
         var entry = new ProfileInformationEntryBuilder().WithSortOrder(1).Build();
         SetupGetAll(repo, entry);
-        ProfileInformationEntry entryToDb = null;
-        repo.Setup(p => p.StoreAsync(It.IsAny<ProfileInformationEntry>()))
-            .Callback<ProfileInformationEntry>(p => entryToDb = p);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
+        ProfileInformationEntry? entryToDb = null;
+        repo.When(r => r.StoreAsync(Arg.Any<ProfileInformationEntry>()))
+            .Do(call => entryToDb = call.Arg<ProfileInformationEntry>());
+        var cut = RenderProfileInAdmin();
         var addShortItemComponent = cut.FindComponent<AddProfileShortItem>();
         addShortItemComponent.Find("input").Change("key");
 
         addShortItemComponent.Find("button").Click();
 
-        entryToDb.Should().NotBeNull();
-        entryToDb.Content.Should().Be("key");
-        entryToDb.SortOrder.Should().Be(1001);
+        entryToDb.ShouldNotBeNull();
+        entryToDb.Content.ShouldBe("key");
+        entryToDb.SortOrder.ShouldBe(1001);
     }
 
     [Fact]
@@ -120,19 +120,18 @@ public class ProfileTests : TestContext
         var target = new ProfileInformationEntryBuilder().WithSortOrder(100).Build();
         var source = new ProfileInformationEntryBuilder().WithSortOrder(200).Build();
         var (repo, calculator) = RegisterServices();
-        var profileInformationEntries = new List<ProfileInformationEntry> { target, source };
         SetupGetAll(repo, target, source);
-        ProfileInformationEntry entryToDb = null;
-        repo.Setup(p => p.StoreAsync(It.IsAny<ProfileInformationEntry>()))
-            .Callback<ProfileInformationEntry>(p => entryToDb = p);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
-        calculator.Setup(s => s.GetSortOrder(target, profileInformationEntries)).Returns(150);
+        ProfileInformationEntry? entryToDb = null;
+        repo.When(r => r.StoreAsync(Arg.Any<ProfileInformationEntry>()))
+            .Do(call => entryToDb = call.Arg<ProfileInformationEntry>());
+        var cut = RenderProfileInAdmin();
+        calculator.GetSortOrder(target, Arg.Any<IEnumerable<ProfileInformationEntry>>()).Returns(150);
 
         cut.FindAll("li")[1].Drag();
         cut.FindAll("li")[0].Drop();
 
-        source.SortOrder.Should().Be(150);
-        entryToDb.Should().Be(source);
+        source.SortOrder.ShouldBe(150);
+        entryToDb.ShouldBe(source);
     }
 
     [Fact]
@@ -141,48 +140,48 @@ public class ProfileTests : TestContext
         var source = new ProfileInformationEntryBuilder().WithSortOrder(200).Build();
         var (repo, _) = RegisterServices();
         SetupGetAll(repo, source);
-        var cut = RenderComponent<Profile>(p => p.Add(s => s.ShowAdminActions, true));
+        var cut = RenderProfileInAdmin();
 
         cut.FindAll("li")[0].Drag();
         cut.FindAll("li")[0].Drop();
 
-        source.SortOrder.Should().Be(200);
-    }
-
-    private static AppConfiguration CreateEmptyConfiguration()
-    {
-        return new()
-        {
-            ProfileInformation = new ProfileInformation(),
-        };
+        source.SortOrder.ShouldBe(200);
     }
 
     private static void SetupGetAll(
-        Mock<IRepository<ProfileInformationEntry>> repoMock, params
-            ProfileInformationEntry[] entries)
+        IRepository<ProfileInformationEntry> repoMock,
+        params ProfileInformationEntry[] entries)
     {
-        repoMock.Setup(r => r.GetAllAsync(
-                It.IsAny<Expression<Func<ProfileInformationEntry, bool>>>(),
-                It.IsAny<Expression<Func<ProfileInformationEntry, object>>>(),
-                It.IsAny<bool>(),
-                It.IsAny<int>(),
-                It.IsAny<int>()))
-            .ReturnsAsync(new PagedList<ProfileInformationEntry>(entries, 1, 100));
+        repoMock.GetAllAsync(
+                Arg.Any<Expression<Func<ProfileInformationEntry, bool>>>(),
+                Arg.Any<Expression<Func<ProfileInformationEntry, object>>>(),
+                Arg.Any<bool>(),
+                Arg.Any<int>(),
+                Arg.Any<int>())
+            .Returns(new PagedList<ProfileInformationEntry>(entries, entries.Length, 1, 100));
     }
 
-    private (Mock<IRepository<ProfileInformationEntry>> repoMock, Mock<ISortOrderCalculator> calcMock) RegisterServices()
+    private (IRepository<ProfileInformationEntry> repoMock, ISortOrderCalculator calcMock) RegisterServices()
     {
-        var repoMock = new Mock<IRepository<ProfileInformationEntry>>();
-        var calcMock = new Mock<ISortOrderCalculator>();
-        Services.AddScoped(_ => CreateEmptyConfiguration());
-        Services.AddScoped(_ => repoMock.Object);
-        Services.AddScoped(_ => calcMock.Object);
-        repoMock.Setup(r => r.GetAllAsync(
-            It.IsAny<Expression<Func<ProfileInformationEntry, bool>>>(),
-            It.IsAny<Expression<Func<ProfileInformationEntry, object>>>(),
-            It.IsAny<bool>(),
-            It.IsAny<int>(),
-            It.IsAny<int>())).ReturnsAsync(PagedList<ProfileInformationEntry>.Empty);
+        var repoMock = Substitute.For<IRepository<ProfileInformationEntry>>();
+        var calcMock = Substitute.For<ISortOrderCalculator>();
+        Services.AddScoped(_ => repoMock);
+        Services.AddScoped(_ => calcMock);
+        repoMock.GetAllAsync(
+                Arg.Any<Expression<Func<ProfileInformationEntry, bool>>>(),
+                Arg.Any<Expression<Func<ProfileInformationEntry, object>>>(),
+                Arg.Any<bool>(),
+                Arg.Any<int>(),
+                Arg.Any<int>())
+            .Returns(PagedList<ProfileInformationEntry>.Empty);
         return (repoMock, calcMock);
     }
+
+    private RenderedComponent<Profile> RenderProfileWithEmptyInformation()
+        => Render<Profile>(p => p.Add(s => s.ProfileInformation, new ProfileInformationBuilder().Build()));
+
+    private RenderedComponent<Profile> RenderProfileInAdmin()
+        => Render<Profile>(p => p
+            .Add(s => s.ProfileInformation, new ProfileInformationBuilder().Build())
+            .Add(s => s.ShowAdminActions, true));
 }

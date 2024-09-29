@@ -8,25 +8,22 @@ using Microsoft.Extensions.Logging;
 
 namespace LinkDotNet.Blog.Web.Features.Services;
 
-public sealed class UserRecordService : IUserRecordService
+public sealed partial class UserRecordService : IUserRecordService
 {
     private readonly IRepository<UserRecord> userRecordRepository;
     private readonly NavigationManager navigationManager;
     private readonly AuthenticationStateProvider authenticationStateProvider;
-    private readonly ILocalStorageService localStorageService;
     private readonly ILogger<UserRecordService> logger;
 
     public UserRecordService(
         IRepository<UserRecord> userRecordRepository,
         NavigationManager navigationManager,
         AuthenticationStateProvider authenticationStateProvider,
-        ILocalStorageService localStorageService,
         ILogger<UserRecordService> logger)
     {
         this.userRecordRepository = userRecordRepository;
         this.navigationManager = navigationManager;
         this.authenticationStateProvider = authenticationStateProvider;
-        this.localStorageService = localStorageService;
         this.logger = logger;
     }
 
@@ -38,56 +35,27 @@ public sealed class UserRecordService : IUserRecordService
         }
         catch (Exception e)
         {
-            logger.LogError("Error while storing user record service: {Exception}", e);
+            LogUserRecordError(e);
         }
     }
 
     private async ValueTask GetAndStoreUserRecordAsync()
     {
         var userIdentity = (await authenticationStateProvider.GetAuthenticationStateAsync()).User.Identity;
-        if (userIdentity == null || userIdentity.IsAuthenticated)
+        if (userIdentity is { IsAuthenticated: true })
         {
             return;
         }
-
-        var identifierHash = await GetIdentifierHashAsync();
 
         var url = GetClickedUrl();
 
         var record = new UserRecord
         {
-            UserIdentifierHash = identifierHash,
             DateClicked = DateOnly.FromDateTime(DateTime.UtcNow),
             UrlClicked = url,
         };
 
         await userRecordRepository.StoreAsync(record);
-    }
-
-    private async ValueTask<int> GetIdentifierHashAsync()
-    {
-        if (await HasKeyAsync())
-        {
-            var key = await localStorageService.GetItemAsync<Guid>("user");
-            return key.GetHashCode();
-        }
-
-        var id = Guid.NewGuid();
-        await localStorageService.SetItemAsync("user", id);
-        return id.GetHashCode();
-    }
-
-    private async ValueTask<bool> HasKeyAsync()
-    {
-        try
-        {
-            return await localStorageService.ContainKeyAsync("user");
-        }
-        catch (Exception e)
-        {
-            logger.LogError("Couldn't obtain key for user: {Exception}", e);
-            return false;
-        }
     }
 
     private string GetClickedUrl()
@@ -99,7 +67,10 @@ public sealed class UserRecordService : IUserRecordService
             return string.Empty;
         }
 
-        var queryIndex = basePath.IndexOf('?');
+        var queryIndex = basePath.IndexOf('?', StringComparison.OrdinalIgnoreCase);
         return queryIndex >= 0 ? basePath[..queryIndex] : basePath;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error while storing user record service.")]
+    private partial void LogUserRecordError(Exception exception);
 }

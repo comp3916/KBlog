@@ -4,9 +4,7 @@ namespace LinkDotNet.Blog.Domain;
 
 public sealed class UserRecord : Entity
 {
-    public int UserIdentifierHash { get; set; }
+    public DateOnly DateClicked { get; init; }
 
-    public DateOnly DateClicked { get; set; }
-
-    public string UrlClicked { get; set; }
+    public required string UrlClicked { get; init; }
 }

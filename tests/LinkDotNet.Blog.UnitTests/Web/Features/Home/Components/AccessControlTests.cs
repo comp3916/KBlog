@@ -1,54 +1,53 @@
 ﻿using AngleSharp.Html.Dom;
-using AngleSharpWrappers;
 using LinkDotNet.Blog.Web.Features.Home.Components;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Home.Components;
 
-public class AccessControlTests : TestContext
+public class AccessControlTests : BunitContext
 {
     [Fact]
     public void ShouldShowLoginAndHideAdminWhenNotLoggedIn()
     {
-        this.AddTestAuthorization();
+        AddAuthorization();
 
-        var cut = RenderComponent<AccessControl>();
+        var cut = Render<AccessControl>();
 
-        cut.FindAll("a:contains('Admin')").Should().HaveCount(0);
-        cut.FindAll("a:contains('Log in')").Should().HaveCount(1);
+        cut.FindAll("a:contains('Admin')").ShouldBeEmpty();
+        cut.FindAll("a:contains('Log in')").ShouldHaveSingleItem();
     }
 
     [Fact]
     public void ShouldShowLogoutAndAdminWhenLoggedIn()
     {
-        this.AddTestAuthorization().SetAuthorized("steven");
+        AddAuthorization().SetAuthorized("steven");
 
-        var cut = RenderComponent<AccessControl>();
+        var cut = Render<AccessControl>();
 
-        cut.FindAll("a:contains('Admin')").Should().HaveCount(1);
-        cut.FindAll("a:contains('Log out')").Should().HaveCount(1);
+        cut.FindAll("a:contains('Admin')").ShouldHaveSingleItem();
+        cut.FindAll("a:contains('Log out')").ShouldHaveSingleItem();
     }
 
     [Fact]
     public void LoginShouldHaveCurrentUriAsRedirectUri()
     {
         const string currentUri = "http://localhost/test";
-        this.AddTestAuthorization();
+        AddAuthorization();
 
-        var cut = RenderComponent<AccessControl>(
+        var cut = Render<AccessControl>(
             p => p.Add(s => s.CurrentUri, currentUri));
 
-        ((IHtmlAnchorElement)cut.Find("a:contains('Log in')").Unwrap()).Href.Should().Contain(currentUri);
+        ((IHtmlAnchorElement)cut.Find("a:contains('Log in')")).Href.ShouldContain(currentUri);
     }
 
     [Fact]
     public void LogoutShouldHaveCurrentUriAsRedirectUri()
     {
         const string currentUri = "http://localhost/test";
-        this.AddTestAuthorization().SetAuthorized("steven");
+        AddAuthorization().SetAuthorized("steven");
 
-        var cut = RenderComponent<AccessControl>(
+        var cut = Render<AccessControl>(
             p => p.Add(s => s.CurrentUri, currentUri));
 
-        ((IHtmlAnchorElement)cut.Find("a:contains('Log out')").Unwrap()).Href.Should().Contain(currentUri);
+        ((IHtmlAnchorElement)cut.Find("a:contains('Log out')")).Href.ShouldContain(currentUri);
     }
 }

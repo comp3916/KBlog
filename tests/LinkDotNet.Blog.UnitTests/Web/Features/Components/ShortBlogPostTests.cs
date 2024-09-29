@@ -1,54 +1,35 @@
-﻿using System;
+using System;
 using System.Linq;
 using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web.Features.Components;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Components;
 
-public class ShortBlogPostTests : TestContext
+public class ShortBlogPostTests : BunitContext
 {
-    public ShortBlogPostTests()
-    {
-        Services.AddMemoryCache();
-    }
-
     [Fact]
     public void ShouldOpenBlogPost()
     {
         var blogPost = new BlogPostBuilder().Build();
         blogPost.Id = "SomeId";
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
         var readMore = cut.Find(".read-more a");
 
-        readMore.Attributes.Single(a => a.Name == "href").Value.Should().Be("/blogPost/SomeId");
+        readMore.Attributes.Single(a => a.Name == "href").Value.ShouldBe("/blogPost/SomeId/blogpost");
     }
 
     [Fact]
     public void ShouldNavigateToEscapedTagSiteWhenClickingOnTag()
     {
         var blogPost = new BlogPostBuilder().WithTags("Tag 1").Build();
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
         var searchByTagLink = cut.Find(".goto-tag");
 
-        searchByTagLink.Attributes.Single(a => a.Name == "href").Value.Should().Be("/searchByTag/Tag%201");
-    }
-
-    [Fact]
-    public void ShouldCalculateReadingTime()
-    {
-        var content = string.Join(' ', Enumerable.Repeat("word", 750)) + string.Join(' ', Enumerable.Repeat("![image](url)", 4));
-        var blogPost = new BlogPostBuilder().WithContent(content).Build();
-        var cut = RenderComponent<ShortBlogPost>(
-            p => p.Add(c => c.BlogPost, blogPost));
-
-        var readTime = cut.Find(".read-time");
-
-        readTime.TextContent.Should().Be("5 min");
+        searchByTagLink.Attributes.Single(a => a.Name == "href").Value.ShouldBe("/searchByTag/Tag%201");
     }
 
     [Fact]
@@ -56,10 +37,10 @@ public class ShortBlogPostTests : TestContext
     {
         var blogPost = new BlogPostBuilder().Build();
 
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
-        cut.FindAll(".goto-tag").Should().BeEmpty();
+        cut.FindAll(".goto-tag").ShouldBeEmpty();
     }
 
     [Fact]
@@ -68,10 +49,10 @@ public class ShortBlogPostTests : TestContext
         var blogPost = new BlogPostBuilder().IsPublished(false).WithScheduledPublishDate(new DateTime(2099, 1, 1))
             .Build();
 
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
-        cut.Find(".schedule").Should().NotBeNull();
+        cut.Find(".schedule").ShouldNotBeNull();
     }
 
     [Fact]
@@ -79,10 +60,10 @@ public class ShortBlogPostTests : TestContext
     {
         var blogPost = new BlogPostBuilder().IsPublished(false).Build();
 
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
-        cut.Find(".draft").Should().NotBeNull();
+        cut.Find(".draft").ShouldNotBeNull();
     }
 
     [Fact]
@@ -90,10 +71,10 @@ public class ShortBlogPostTests : TestContext
     {
         var blogPost = new BlogPostBuilder().IsPublished(true).Build();
 
-        var cut = RenderComponent<ShortBlogPost>(
+        var cut = Render<ShortBlogPost>(
             p => p.Add(c => c.BlogPost, blogPost));
 
-        cut.FindAll(".draft").Should().BeEmpty();
-        cut.FindAll(".scheduled").Should().BeEmpty();
+        cut.FindAll(".draft").ShouldBeEmpty();
+        cut.FindAll(".scheduled").ShouldBeEmpty();
     }
 }

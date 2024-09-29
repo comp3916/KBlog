@@ -5,7 +5,7 @@ namespace LinkDotNet.Blog.TestUtilities;
 public class SkillBuilder
 {
     private string skill = "C#";
-    private string iconUrl;
+    private string? iconUrl;
     private string capability = "Backend";
     private ProficiencyLevel proficiencyLevel = ProficiencyLevel.Familiar;
 
@@ -15,7 +15,7 @@ public class SkillBuilder
         return this;
     }
 
-    public SkillBuilder WithIconUrl(string iconUrl)
+    public SkillBuilder WithIconUrl(string? iconUrl)
     {
         this.iconUrl = iconUrl;
         return this;

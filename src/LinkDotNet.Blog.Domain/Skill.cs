@@ -4,11 +4,7 @@ namespace LinkDotNet.Blog.Domain;
 
 public sealed class Skill : Entity
 {
-    private Skill()
-    {
-    }
-
-    private Skill(string name, string iconUrl, string capability, ProficiencyLevel proficiencyLevel)
+    private Skill(string name, string? iconUrl, string capability, ProficiencyLevel proficiencyLevel)
     {
         IconUrl = iconUrl;
         Name = name;
@@ -16,7 +12,7 @@ public sealed class Skill : Entity
         ProficiencyLevel = proficiencyLevel;
     }
 
-    public string IconUrl { get; private set; }
+    public string? IconUrl { get; private set; }
 
     public string Name { get; private set; }
 
@@ -24,17 +20,10 @@ public sealed class Skill : Entity
 
     public ProficiencyLevel ProficiencyLevel { get; private set; }
 
-    public static Skill Create(string name, string iconUrl, string capability, string proficiencyLevel)
+    public static Skill Create(string name, string? iconUrl, string capability, string proficiencyLevel)
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
-
-        if (string.IsNullOrWhiteSpace(capability))
-        {
-            throw new ArgumentNullException(nameof(capability));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(capability);
 
         var level = ProficiencyLevel.Create(proficiencyLevel);
 

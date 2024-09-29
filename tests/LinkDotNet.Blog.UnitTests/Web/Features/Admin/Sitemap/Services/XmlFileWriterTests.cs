@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using LinkDotNet.Blog.Web.Features.Admin.Sitemap.Services;
+using TestContext = Xunit.TestContext;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Admin.Sitemap.Services;
 
@@ -16,10 +17,10 @@ public sealed class XmlFileWriterTests : IDisposable
 
         await new XmlFileWriter().WriteObjectToXmlFileAsync(myObj, OutputFilename);
 
-        var content = await File.ReadAllTextAsync(OutputFilename);
-        content.Should().NotBeNull();
-        content.Should().Contain("<MyObject");
-        content.Should().Contain("<Property>Prop</Property>");
+        var content = await File.ReadAllTextAsync(OutputFilename, cancellationToken: TestContext.Current.CancellationToken);
+        content.ShouldNotBeNull();
+        content.ShouldContain("<MyObject");
+        content.ShouldContain("<Property>Prop</Property>");
     }
 
     public void Dispose()
@@ -32,6 +33,6 @@ public sealed class XmlFileWriterTests : IDisposable
 
     public class MyObject
     {
-        public string Property { get; set; }
+        public required string Property { get; set; }
     }
 }

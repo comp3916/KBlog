@@ -9,23 +9,23 @@ using LinkDotNet.Blog.Web.Features.Admin.Sitemap.Services;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Admin.Sitemap.Services;
 
-public class SitemapServiceTests : TestContext
+public class SitemapServiceTests : BunitContext
 {
-    private readonly Mock<IRepository<BlogPost>> repositoryMock;
-    private readonly Mock<IXmlFileWriter> xmlFileWriterMock;
+    private readonly IRepository<BlogPost> repositoryMock;
+    private readonly IXmlFileWriter xmlFileWriterMock;
     private readonly SitemapService sut;
-    private readonly FakeNavigationManager fakeNavigationManager;
+    private readonly BunitNavigationManager fakeNavigationManager;
 
     public SitemapServiceTests()
     {
-        repositoryMock = new Mock<IRepository<BlogPost>>();
-        fakeNavigationManager = new FakeNavigationManager(Renderer);
+        repositoryMock = Substitute.For<IRepository<BlogPost>>();
+        fakeNavigationManager = new BunitNavigationManager(this);
 
-        xmlFileWriterMock = new Mock<IXmlFileWriter>();
+        xmlFileWriterMock = Substitute.For<IXmlFileWriter>();
         sut = new SitemapService(
-            repositoryMock.Object,
+            repositoryMock,
             fakeNavigationManager,
-            xmlFileWriterMock.Object);
+            xmlFileWriterMock);
     }
 
     [Fact]
@@ -41,24 +41,23 @@ public class SitemapServiceTests : TestContext
             .WithTags("tag2")
             .Build();
         bp2.Id = "id2";
-        var blogPosts = new[] { bp1, bp2 };
-        repositoryMock.Setup(r => r.GetAllAsync(
-                It.IsAny<Expression<Func<BlogPost, bool>>>(),
-                p => p.UpdatedDate,
-                true,
-                It.IsAny<int>(),
-                It.IsAny<int>()))
-            .ReturnsAsync(new PagedList<BlogPost>(blogPosts, 1, 10));
+        repositoryMock.GetAllAsync(
+                Arg.Any<Expression<Func<BlogPost, bool>>>(), 
+                Arg.Any<Expression<Func<BlogPost, object>>>(),
+                        true, 
+                Arg.Any<int>(), 
+                Arg.Any<int>())
+            .Returns(new PagedList<BlogPost>([bp1, bp2], 2, 1, 10));
 
         var sitemap = await sut.CreateSitemapAsync();
 
-        sitemap.Urls.Should().HaveCount(6);
-        sitemap.Urls[0].Location.Should().Be($"{fakeNavigationManager.BaseUri}");
-        sitemap.Urls[1].Location.Should().Be($"{fakeNavigationManager.BaseUri}archive");
-        sitemap.Urls[2].Location.Should().Be($"{fakeNavigationManager.BaseUri}blogPost/id1");
-        sitemap.Urls[3].Location.Should().Be($"{fakeNavigationManager.BaseUri}blogPost/id2");
-        sitemap.Urls[4].Location.Should().Be($"{fakeNavigationManager.BaseUri}searchByTag/tag1");
-        sitemap.Urls[5].Location.Should().Be($"{fakeNavigationManager.BaseUri}searchByTag/tag2");
+        sitemap.Urls.Count.ShouldBe(6);
+        sitemap.Urls[0].Location.ShouldBe($"{fakeNavigationManager.BaseUri}");
+        sitemap.Urls[1].Location.ShouldBe($"{fakeNavigationManager.BaseUri}archive");
+        sitemap.Urls[2].Location.ShouldBe($"{fakeNavigationManager.BaseUri}blogPost/id1");
+        sitemap.Urls[3].Location.ShouldBe($"{fakeNavigationManager.BaseUri}blogPost/id2");
+        sitemap.Urls[4].Location.ShouldBe($"{fakeNavigationManager.BaseUri}searchByTag/tag1");
+        sitemap.Urls[5].Location.ShouldBe($"{fakeNavigationManager.BaseUri}searchByTag/tag2");
     }
 
     [Fact]
@@ -68,6 +67,6 @@ public class SitemapServiceTests : TestContext
 
         await sut.SaveSitemapToFileAsync(sitemap);
 
-        xmlFileWriterMock.Verify(x => x.WriteObjectToXmlFileAsync(sitemap, "wwwroot/sitemap.xml"));
+        await xmlFileWriterMock.Received(1).WriteObjectToXmlFileAsync(sitemap, "wwwroot/sitemap.xml");
     }
 }

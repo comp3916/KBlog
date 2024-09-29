@@ -10,50 +10,50 @@ public class SkillTests
     {
         var skill = Skill.Create(" C# ", "url", " Backend ", ProficiencyLevel.Expert.Key);
 
-        skill.Name.Should().Be("C#");
-        skill.IconUrl.Should().Be("url");
-        skill.Capability.Should().Be("Backend");
-        skill.ProficiencyLevel.Should().Be(ProficiencyLevel.Expert);
+        skill.Name.ShouldBe("C#");
+        skill.IconUrl.ShouldBe("url");
+        skill.Capability.ShouldBe("Backend");
+        skill.ProficiencyLevel.ShouldBe(ProficiencyLevel.Expert);
     }
 
     [Theory]
-    [InlineData(null)]
+    [InlineData(null!)]
     [InlineData("")]
     [InlineData(" ")]
-    public void ShouldThrowWhenWhitespaceName(string name)
+    public void ShouldThrowWhenWhitespaceName(string? name)
     {
-        Action result = () => Skill.Create(name, "url", "backend", ProficiencyLevel.Expert.Key);
+        Action result = () => Skill.Create(name!, "url", "backend", ProficiencyLevel.Expert.Key);
 
-        result.Should().Throw<ArgumentNullException>();
+        result.ShouldThrow<ArgumentException>();
     }
 
     [Theory]
-    [InlineData(null)]
+    [InlineData(null!)]
     [InlineData("")]
     [InlineData(" ")]
-    public void ShouldThrowWhenWhitespaceCapability(string capability)
+    public void ShouldThrowWhenWhitespaceCapability(string? capability)
     {
-        Action result = () => Skill.Create("name", "url", capability, ProficiencyLevel.Expert.Key);
+        Action result = () => Skill.Create("name", "url", capability!, ProficiencyLevel.Expert.Key);
 
-        result.Should().Throw<ArgumentNullException>();
+        result.ShouldThrow<ArgumentException>();
     }
 
     [Fact]
     public void ShouldThrowWhenInvalidProficiencyLevel()
     {
         Action result = () => Skill.Create("name", "url", "cap", "null");
-        result.Should().Throw<Exception>();
+        result.ShouldThrow<Exception>();
     }
 
     [Theory]
-    [InlineData(null)]
+    [InlineData(null!)]
     [InlineData("")]
     [InlineData(" ")]
-    public void ShouldSetUrlToNullWhenWhitespace(string url)
+    public void ShouldSetUrlToNullWhenWhitespace(string? url)
     {
         var skill = Skill.Create("name", url, "cap", ProficiencyLevel.Expert.Key);
 
-        skill.IconUrl.Should().BeNull();
+        skill.IconUrl.ShouldBeNull();
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class SkillTests
 
         skill.SetProficiencyLevel(ProficiencyLevel.Proficient);
 
-        skill.ProficiencyLevel.Should().Be(ProficiencyLevel.Proficient);
+        skill.ProficiencyLevel.ShouldBe(ProficiencyLevel.Proficient);
     }
 
     [Fact]
@@ -71,8 +71,8 @@ public class SkillTests
     {
         var skill = Skill.Create("name", null, "cap", ProficiencyLevel.Familiar.Key);
 
-        Action result = () => skill.SetProficiencyLevel(null);
+        Action result = () => skill.SetProficiencyLevel(null!);
 
-        result.Should().Throw<ArgumentNullException>();
+        result.ShouldThrow<ArgumentNullException>();
     }
 }

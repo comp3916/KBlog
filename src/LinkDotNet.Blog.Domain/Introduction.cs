@@ -2,9 +2,11 @@
 
 public sealed record Introduction
 {
-    public string BackgroundUrl { get; init; }
+    public const string IntroductionSection = "Introduction";
 
-    public string ProfilePictureUrl { get; init; }
+    public string? BackgroundUrl { get; init; }
 
-    public string Description { get; init; }
+    public required string ProfilePictureUrl { get; init; }
+
+    public required string Description { get; init; }
 }

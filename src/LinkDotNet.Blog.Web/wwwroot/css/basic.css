@@ -6,7 +6,7 @@
 	/* Color definitions */
 	--wild-sand: #f4f4f4;
 	--silver: #dadada;
-	--waterloo: rgba(124, 124, 148, 0.5);
+	--waterloo: rgba(140, 140, 162, 0.25);
 
 	/* Usages */
 	--background: var(--wild-sand);
@@ -14,6 +14,10 @@
 
 	--background-gradient-start: var(--wild-sand);
 	--background-gradient-end: var(--silver);
+
+    /* Override some Bootstrap defaults */
+    --bs-body-font-weight: 300;
+    --bs-nav-link-font-weight: 300;
 }
 
 html[data-bs-theme='dark'] {
@@ -28,6 +32,10 @@ html[data-bs-theme='dark'] {
 
 	--background-gradient-start: var(--jaguar);
 	--background-gradient-end: var(--shark);
+
+    /* Override some Bootstrap defaults */
+    --bs-body-font-weight: 300;
+    --bs-nav-link-font-weight: 300;
 }
 
 html {

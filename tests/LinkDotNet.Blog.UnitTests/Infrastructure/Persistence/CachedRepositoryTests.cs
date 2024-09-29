@@ -11,27 +11,27 @@ namespace LinkDotNet.Blog.UnitTests.Infrastructure.Persistence;
 
 public sealed class CachedRepositoryTests
 {
-    private readonly Mock<IRepository<BlogPost>> repositoryMock;
+    private readonly IRepository<BlogPost> repositoryMock;
     private readonly CachedRepository<BlogPost> sut;
 
     public CachedRepositoryTests()
     {
-        repositoryMock = new Mock<IRepository<BlogPost>>();
-        sut = new CachedRepository<BlogPost>(repositoryMock.Object, new MemoryCache(new MemoryCacheOptions()));
+        repositoryMock = Substitute.For<IRepository<BlogPost>>();
+        sut = new CachedRepository<BlogPost>(repositoryMock, new MemoryCache(new MemoryCacheOptions()));
     }
 
     [Fact]
     public async Task ShouldGetFromCacheWhenLoaded()
     {
         var blogPost = new BlogPostBuilder().Build();
-        repositoryMock.Setup(r => r.GetByIdAsync("id")).ReturnsAsync(blogPost);
+        repositoryMock.GetByIdAsync("id").Returns(blogPost);
         var firstCall = await sut.GetByIdAsync("id");
 
         var secondCall = await sut.GetByIdAsync("id");
 
-        firstCall.Should().Be(secondCall);
-        firstCall.Should().Be(blogPost);
-        repositoryMock.Verify(r => r.GetByIdAsync("id"), Times.Once);
+        firstCall.ShouldBe(secondCall);
+        firstCall.ShouldBe(blogPost);
+        await repositoryMock.Received(1).GetByIdAsync("id");
     }
 
     [Fact]
@@ -57,30 +57,29 @@ public sealed class CachedRepositoryTests
             2,
             30);
 
-        repositoryMock.Verify(
-            r => r.GetAllAsync(
-                It.IsAny<Expression<Func<BlogPost, bool>>>(),
-                It.IsAny<Expression<Func<BlogPost, object>>>(),
-                It.IsAny<bool>(),
-                It.IsAny<int>(),
-                It.IsAny<int>()),
-            Times.Exactly(6));
+        await repositoryMock.Received(6).GetAllAsync(
+                Arg.Any<Expression<Func<BlogPost, bool>>>(), 
+                Arg.Any<Expression<Func<BlogPost, object>>>(), 
+                Arg.Any<bool>(), 
+                Arg.Any<int>(), 
+                Arg.Any<int>());
     }
 
     [Fact]
     public async Task ShouldUpdateCacheOnStore()
     {
         var blogPost = new BlogPostBuilder().Build();
-        repositoryMock.Setup(r => r.StoreAsync(blogPost))
-            .Callback(() => blogPost.Id = "id");
-        repositoryMock.Setup(r => r.GetByIdAsync("id")).ReturnsAsync(blogPost);
+        repositoryMock.When(r => r.StoreAsync(blogPost))
+            .Do(_ => blogPost.Id = "id");
+        repositoryMock.GetByIdAsync("id").Returns(blogPost);
         var update = new BlogPostBuilder().WithTitle("new").Build();
         blogPost.Update(update);
         await sut.StoreAsync(blogPost);
 
         var latest = await sut.GetByIdAsync("id");
 
-        latest.Title.Should().Be("new");
+        latest.ShouldNotBeNull();
+        latest.Title.ShouldBe("new");
     }
 
     [Fact]
@@ -88,7 +87,7 @@ public sealed class CachedRepositoryTests
     {
         await sut.DeleteAsync("id");
 
-        repositoryMock.Verify(r => r.DeleteAsync("id"), Times.Once);
+        await repositoryMock.Received(1).DeleteAsync("id");
     }
 
     [Fact]
@@ -100,25 +99,43 @@ public sealed class CachedRepositoryTests
 
         await sut.GetAllAsync();
 
-        repositoryMock.Verify(
-            r => r.GetAllAsync(
-            It.IsAny<Expression<Func<BlogPost, bool>>>(),
-            It.IsAny<Expression<Func<BlogPost, object>>>(),
-            It.IsAny<bool>(),
-            It.IsAny<int>(),
-            It.IsAny<int>()),
-            Times.Exactly(2));
+        await repositoryMock.Received(2).GetAllAsync(
+                Arg.Any<Expression<Func<BlogPost, bool>>>(), 
+                Arg.Any<Expression<Func<BlogPost, object>>>(), 
+                Arg.Any<bool>(), 
+                Arg.Any<int>(), 
+                Arg.Any<int>());
+    }
+    
+    [Theory]
+    [InlineData(null!)]
+    [InlineData("some_id")]
+    public async Task ShouldNotThrowExceptionWhenCallingStoreWithoutRetrievingKeyFirst(string? id)
+    {
+        var blogPost = new BlogPostBuilder().Build();
+        blogPost.Id = id!;
+        
+        await sut.StoreAsync(blogPost);
+        
+        await repositoryMock.Received(1).StoreAsync(blogPost);
+    }
+    
+    [Fact]
+    public async Task ShouldNotThrowExceptionWhenCallingDeleteWithoutRetrievingKeyFirst()
+    {
+        await sut.DeleteAsync("some_id");
+        
+        await repositoryMock.Received(1).DeleteAsync("some_id");
     }
 
     private void SetupRepository()
     {
         var blogPost = new BlogPostBuilder().Build();
-        repositoryMock.Setup(r => r.GetAllAsync(
-                It.IsAny<Expression<Func<BlogPost, bool>>>(),
-                It.IsAny<Expression<Func<BlogPost, object>>>(),
-                It.IsAny<bool>(),
-                It.IsAny<int>(),
-                It.IsAny<int>()))
-            .ReturnsAsync(new PagedList<BlogPost>(new[] { blogPost }, 1, 1));
+
+        repositoryMock.GetAllAsync(Arg.Any<Expression<Func<BlogPost, bool>>>(),
+            Arg.Any<Expression<Func<BlogPost, object>>>(),
+            Arg.Any<bool>(),
+            Arg.Any<int>(),
+            Arg.Any<int>()).Returns(new PagedList<BlogPost>([blogPost], 1, 1, 1));
     }
 }

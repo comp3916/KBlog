@@ -58,11 +58,11 @@
     [Parameter]
     public bool ShowAdminActions { get; set; }
 
-    private AddSkillDialog AddSkillDialog { get; set; }
+    private AddSkillDialog AddSkillDialog { get; set; } = default!;
 
-    private List<Skill> skills = new();
+    private List<Skill> skills = [];
 
-    private Skill currentDragItem;
+    private Skill? currentDragItem;
 
     protected override async Task OnInitializedAsync()
     {
@@ -83,7 +83,7 @@
 
     private async Task HandleDrop(ProficiencyLevel proficiencyLevel)
     {
-        if (currentDragItem == null || currentDragItem.ProficiencyLevel == proficiencyLevel)
+        if (currentDragItem is null || currentDragItem.ProficiencyLevel == proficiencyLevel)
         {
             return;
         }

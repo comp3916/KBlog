@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web.Features.Admin.DraftBlogPost;
@@ -17,16 +16,15 @@ public class DraftBlogPostPageTests : SqlDatabaseTestBase<BlogPost>
         var unpublishedPost = new BlogPostBuilder().WithTitle("Not published").IsPublished(false).Build();
         await Repository.StoreAsync(publishedPost);
         await Repository.StoreAsync(unpublishedPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddMemoryCache();
-        var cut = ctx.RenderComponent<DraftBlogPostPage>();
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        var cut = ctx.Render<DraftBlogPostPage>();
+        cut.WaitForElement(".blog-card");
 
         var blogPosts = cut.FindComponents<ShortBlogPost>();
 
-        blogPosts.Should().HaveCount(1);
-        blogPosts[0].Find(".description h1").InnerHtml.Should().Be("Not published");
+        blogPosts.ShouldHaveSingleItem();
+        blogPosts[0].Find(".description h1").InnerHtml.ShouldBe("Not published");
     }
 }

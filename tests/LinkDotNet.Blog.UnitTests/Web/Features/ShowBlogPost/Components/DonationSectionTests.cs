@@ -1,42 +1,58 @@
+using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web;
 using LinkDotNet.Blog.Web.Features.ShowBlogPost.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.ShowBlogPost.Components;
 
-public class DonationSectionTests : TestContext
+public class DonationSectionTests : BunitContext
 {
     [Theory]
     [InlineData("linkdotnet", true)]
     [InlineData(null, false)]
 
-    public void ShouldShowKofiIfSet(string token, bool hasComponent)
+    public void ShouldShowKofiIfSet(string? token, bool hasComponent)
     {
-        var appConfig = new AppConfiguration
-        {
-            KofiToken = token,
-        };
-        Services.AddScoped(_ => appConfig);
+        JSInterop.SetupVoid("myfunc", "myarg").SetVoidResult();
+        var appConfig = new ApplicationConfigurationBuilder()
+            .WithKofiToken(token)
+            .Build();
+        Services.AddScoped(_ => Options.Create(appConfig));
 
-        var cut = RenderComponent<DonationSection>();
+        var cut = Render<DonationSection>();
 
-        cut.HasComponent<Kofi>().Should().Be(hasComponent);
+        cut.HasComponent<Kofi>().ShouldBe(hasComponent);
     }
 
     [Theory]
     [InlineData("linkdotnet", true)]
     [InlineData(null, false)]
 
-    public void ShouldShowGithubSponsorIfSet(string account, bool hasComponent)
+    public void ShouldShowGithubSponsorIfSet(string? account, bool hasComponent)
     {
-        var appConfig = new AppConfiguration
-        {
-            GithubSponsorName = account,
-        };
-        Services.AddScoped(_ => appConfig);
+        var appConfig = new ApplicationConfigurationBuilder()
+            .WithGithubSponsorName(account)
+            .Build();
+        Services.AddScoped(_ =>Options.Create(appConfig));
 
-        var cut = RenderComponent<DonationSection>();
+        var cut = Render<DonationSection>();
 
-        cut.HasComponent<GithubSponsor>().Should().Be(hasComponent);
+        cut.HasComponent<GithubSponsor>().ShouldBe(hasComponent);
+    }
+
+    [Theory]
+    [InlineData("linkdotnet", true)]
+    [InlineData(null, false)]
+    public void ShouldShowPatreonSponsorIfSet(string? account, bool hasComponent)
+    {
+        var appConfig = new ApplicationConfigurationBuilder()
+            .WithPatreonName(account)
+            .Build();
+        Services.AddScoped(_ => Options.Create(appConfig));
+
+        var cut = Render<DonationSection>();
+
+        cut.HasComponent<Patreon>().ShouldBe(hasComponent);
     }
 }

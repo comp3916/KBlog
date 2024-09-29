@@ -1,19 +1,17 @@
 ﻿@using LinkDotNet.Blog.Domain
 @using LinkDotNet.Blog.Infrastructure.Persistence
-@using LinkDotNet.Blog.Web.Features.Components
 @using LinkDotNet.Blog.Web.Features.Services
 
-@inject AppConfiguration AppConfiguration
 @inject IRepository<ProfileInformationEntry> Repository
 @inject ISortOrderCalculator SortOrderCalculator
 <div class="profile-card">
     <div class="profile-name">
-        <span>@AppConfiguration.ProfileInformation.Name</span>
+        <span>@ProfileInformation.Name</span>
         <br/>
-        <span>@AppConfiguration.ProfileInformation.Heading</span>
+        <span>@ProfileInformation.Heading</span>
     </div>
     <div class="profile-image">
-        <img src="@AppConfiguration.ProfileInformation.ProfilePictureUrl" alt="Profile Picture" />
+        <img src="@ProfileInformation.ProfilePictureUrl" alt="Profile Picture" />
     </div>
     <ul class="profile-keypoints"
         ondragover="event.preventDefault();">
@@ -52,10 +50,13 @@ OnYesPressed="DeleteItem"></ConfirmDialog>
     [Parameter]
     public bool ShowAdminActions { get; set; }
 
-    private List<ProfileInformationEntry> profileInformationEntries = new();
-    private ConfirmDialog Dialog { get; set; }
-    private string currentDeleteKey;
-    private ProfileInformationEntry currentDragItem;
+	[Parameter, EditorRequired]
+	public required ProfileInformation ProfileInformation { get; set; }
+
+    private List<ProfileInformationEntry> profileInformationEntries = [];
+    private ConfirmDialog Dialog { get; set; } = default!;
+    private string? currentDeleteKey;
+    private ProfileInformationEntry? currentDragItem;
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,7 +97,7 @@ OnYesPressed="DeleteItem"></ConfirmDialog>
 
     private async Task HandleDrop(ProfileInformationEntry dropTarget)
     {
-        if (currentDragItem == null || dropTarget  == currentDragItem)
+        if (currentDragItem is null || dropTarget == currentDragItem)
         {
             return;
         }

@@ -19,9 +19,8 @@
         </div>
         <div class="mb-3">
             <label for="talk-content">Description</label>
-            <TextAreaWithShortcuts id="talk-content" class="form-control" Rows="10"
-                           @bind-Value="@model.Description"></TextAreaWithShortcuts>
-            <small for="talk-content" class="form-text text-body-secondary">You can use markdown to style your component.</small>
+            <MarkdownTextArea id="talk-content" class="form-control" Rows="10"
+                           @bind-Value="@model.Description"></MarkdownTextArea>
         </div>
         <button id="talk-submit" class="btn btn-primary" type="submit">Submit</button>
     </EditForm>
@@ -32,7 +31,8 @@
     [Parameter]
     public EventCallback<Talk> TalkCreated { get; set; }
 
-    private ModalDialog Dialog { get; set; }
+    private ModalDialog Dialog { get; set; } = default!;
+
     private AddTalkEntryModel model = new();
 
     public void Open()
@@ -43,6 +43,10 @@
 
     private async Task CreateTalk()
     {
+	    ArgumentNullException.ThrowIfNull(model.PresentationTitle);
+	    ArgumentNullException.ThrowIfNull(model.Place);
+	    ArgumentNullException.ThrowIfNull(model.Description);
+
         var talk = Talk.Create(model.PresentationTitle, model.Place, model.Description, model.PublishedDate);
         await TalkCreated.InvokeAsync(talk);
         model = new AddTalkEntryModel();

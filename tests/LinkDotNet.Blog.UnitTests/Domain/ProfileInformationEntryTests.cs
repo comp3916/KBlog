@@ -10,19 +10,19 @@ public class ProfileInformationEntryTests
     {
         var result = ProfileInformationEntry.Create("key", 12);
 
-        result.Content.Should().Be("key");
-        result.SortOrder.Should().Be(12);
+        result.Content.ShouldBe("key");
+        result.SortOrder.ShouldBe(12);
     }
 
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData(null)]
-    public void ShouldThrowExceptionWhenEmptyKeyOrValue(string content)
+    [InlineData(null!)]
+    public void ShouldThrowExceptionWhenEmptyKeyOrValue(string? content)
     {
-        Action act = () => ProfileInformationEntry.Create(content, 0);
+        Action act = () => ProfileInformationEntry.Create(content!, 0);
 
-        act.Should().Throw<ArgumentNullException>();
+        act.ShouldThrow<ArgumentException>();
     }
 
     [Fact]
@@ -30,6 +30,6 @@ public class ProfileInformationEntryTests
     {
         var result = ProfileInformationEntry.Create("   key ", 0);
 
-        result.Content.Should().Be("key");
+        result.Content.ShouldBe("key");
     }
 }

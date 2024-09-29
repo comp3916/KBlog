@@ -1,78 +1,80 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.Infrastructure;
 using LinkDotNet.Blog.Infrastructure.Persistence;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using LinkDotNet.Blog.Web.Features.Services;
+using NCronJob;
 using Microsoft.Extensions.Logging;
 
 namespace LinkDotNet.Blog.Web.Features;
 
-public sealed class BlogPostPublisher : BackgroundService
+public sealed partial class BlogPostPublisher : IJob
 {
-    private readonly IServiceProvider serviceProvider;
     private readonly ILogger<BlogPostPublisher> logger;
+    private readonly IRepository<BlogPost> repository;
+    private readonly ICacheInvalidator cacheInvalidator;
 
-    public BlogPostPublisher(IServiceProvider serviceProvider, ILogger<BlogPostPublisher> logger)
+    public BlogPostPublisher(IRepository<BlogPost> repository, ICacheInvalidator cacheInvalidator, ILogger<BlogPostPublisher> logger)
     {
-        this.serviceProvider = serviceProvider;
+        this.repository = repository;
+        this.cacheInvalidator = cacheInvalidator;
         this.logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public async Task RunAsync(IJobExecutionContext context, CancellationToken token)
     {
-        logger.LogInformation("BlogPostPublisher is starting");
+        ArgumentNullException.ThrowIfNull(context);
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            await PublishScheduledBlogPostsAsync();
-
-            await timer.WaitForNextTickAsync(stoppingToken);
-        }
-
-        logger.LogInformation("BlogPostPublisher is stopping");
+        LogPublishStarting();
+        var publishedPosts = await PublishScheduledBlogPostsAsync();
+        context.Output = publishedPosts;
+        LogPublishStopping();
     }
 
-    private async Task PublishScheduledBlogPostsAsync()
+    private async Task<int> PublishScheduledBlogPostsAsync()
     {
-        logger.LogInformation("Checking for scheduled blog posts");
+        LogCheckingForScheduledBlogPosts();
 
-        using var scope = serviceProvider.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IRepository<BlogPost>>();
-
-        var scheduledBlogPosts = await GetScheduledBlogPostsAsync(repository);
-
-        if (!scheduledBlogPosts.Any())
+        var blogPostsToPublish = await GetScheduledBlogPostsAsync();
+        foreach (var blogPost in blogPostsToPublish)
         {
-            return;
+            blogPost.Publish();
+            await repository.StoreAsync(blogPost);
+            LogPublishedBlogPost(blogPost.Id);
         }
 
-        await PublishAndSaveScheduledBlogPostsAsync(scheduledBlogPosts, repository);
+        if (blogPostsToPublish.Count > 0)
+        {
+            cacheInvalidator.Cancel();
+        }
+
+        return blogPostsToPublish.Count;
     }
 
-    private async Task<IPagedList<BlogPost>> GetScheduledBlogPostsAsync(IRepository<BlogPost> repository)
+    private async Task<IPagedList<BlogPost>> GetScheduledBlogPostsAsync()
     {
         var now = DateTime.UtcNow;
         var scheduledBlogPosts = await repository.GetAllAsync(
             filter: b => b.ScheduledPublishDate != null && b.ScheduledPublishDate <= now);
 
-        logger.LogInformation("Found {Count} scheduled blog posts", scheduledBlogPosts.Count);
+        LogFoundScheduledBlogPosts(scheduledBlogPosts.Count);
         return scheduledBlogPosts;
     }
 
-    private async Task PublishAndSaveScheduledBlogPostsAsync(IEnumerable<BlogPost> scheduledBlogPosts, IRepository<BlogPost> repository)
-    {
-        foreach (var blogPost in scheduledBlogPosts)
-        {
-            blogPost.Publish();
-            await repository.StoreAsync(blogPost);
-            logger.LogInformation("Published blog post with ID {BlogPostId}", blogPost.Id);
-        }
-    }
+    [LoggerMessage(Level = LogLevel.Information, Message = "BlogPostPublisher is starting")]
+    private partial void LogPublishStarting();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "BlogPostPublisher is stopping")]
+    private partial void LogPublishStopping();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Found {Count} scheduled blog posts")]
+    private partial void LogFoundScheduledBlogPosts(int count);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Publishing blog post with ID {BlogPostId}")]
+    private partial void LogPublishedBlogPost(string blogPostId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Checking for scheduled blog posts")]
+    private partial void LogCheckingForScheduledBlogPosts();
 }

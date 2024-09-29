@@ -6,46 +6,39 @@ using LinkDotNet.Blog.Infrastructure.Persistence;
 using LinkDotNet.Blog.Infrastructure.Persistence.Sql;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace LinkDotNet.Blog.IntegrationTests;
 
-public abstract class SqlDatabaseTestBase<TEntity> : IAsyncLifetime, IAsyncDisposable
+public abstract class SqlDatabaseTestBase<TEntity> : IAsyncDisposable
     where TEntity : Entity
 {
-    private readonly Mock<IDbContextFactory<BlogDbContext>> dbContextFactory;
+    private readonly DbConnection connection;
 
     protected SqlDatabaseTestBase()
     {
+        connection = CreateInMemoryConnection();
         var options = new DbContextOptionsBuilder()
-            .UseSqlite(CreateInMemoryConnection())
+            .UseSqlite(connection)
             .Options;
         DbContext = new BlogDbContext(options);
-        dbContextFactory = new Mock<IDbContextFactory<BlogDbContext>>();
-        dbContextFactory.Setup(d => d.CreateDbContextAsync(default))
-            .ReturnsAsync(() => new BlogDbContext(options));
-        Repository = new Repository<TEntity>(dbContextFactory.Object);
+        DbContextFactory = Substitute.For<IDbContextFactory<BlogDbContext>>();
+        DbContextFactory.CreateDbContextAsync()
+            .Returns(_ => new BlogDbContext(options));
+        Repository = new Repository<TEntity>(DbContextFactory, Substitute.For<ILogger<Repository<TEntity>>>());
     }
 
     protected IRepository<TEntity> Repository { get; }
 
     protected BlogDbContext DbContext { get; }
 
-    protected IDbContextFactory<BlogDbContext> DbContextFactory => dbContextFactory.Object;
-
-    public Task InitializeAsync()
-    {
-        return Task.CompletedTask;
-    }
-
-    async Task IAsyncLifetime.DisposeAsync()
-    {
-        await DisposeAsync();
-    }
-
+    protected IDbContextFactory<BlogDbContext> DbContextFactory { get; }
+    
     public async ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
         await DbContext.DisposeAsync();
+        await connection.DisposeAsync();
     }
 
     private static DbConnection CreateInMemoryConnection()

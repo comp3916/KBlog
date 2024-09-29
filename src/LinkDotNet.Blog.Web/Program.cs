@@ -1,41 +1,40 @@
+using System.Threading.Tasks;
 using Blazored.Toast;
-using LinkDotNet.Blog.Web.Authentication.Auth0;
+using HealthChecks.UI.Client;
+using LinkDotNet.Blog.Web.Authentication.OpenIdConnect;
 using LinkDotNet.Blog.Web.Authentication.Dummy;
-using LinkDotNet.Blog.Web.Features;
 using LinkDotNet.Blog.Web.RegistrationExtensions;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 namespace LinkDotNet.Blog.Web;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         RegisterServices(builder);
 
-        var app = builder.Build();
+        await using var app = builder.Build();
         ConfigureApp(app);
 
-        app.Run();
+        await app.RunAsync();
     }
 
     private static void RegisterServices(WebApplicationBuilder builder)
     {
-        builder.Services.AddRazorPages();
-        builder.Services.AddServerSideBlazor();
-        builder.Services.AddSignalR(options =>
-        {
-            options.MaximumReceiveMessageSize = 1024 * 1024;
-        });
-        builder.Services.AddSingleton(_ => AppConfigurationFactory.Create(builder.Configuration));
-        builder.Services.AddBlazoredToast();
-        builder.Services.RegisterServices();
-        builder.Services.AddStorageProvider(builder.Configuration);
-        builder.Services.AddResponseCompression();
-        builder.Services.AddHostedService<BlogPostPublisher>();
+        builder.Services
+            .AddHostingServices()
+            .AddConfiguration()
+            .AddRateLimiting()
+            .AddApplicationServices()
+            .AddStorageProvider(builder.Configuration)
+            .AddBlazoredToast()
+            .AddBlazoriseWithBootstrap()
+            .AddResponseCompression()
+            .AddHealthCheckSetup();
 
         if (builder.Environment.IsDevelopment())
         {
@@ -43,7 +42,7 @@ public class Program
         }
         else
         {
-            builder.Services.UseAuth0Authentication(builder.Configuration);
+            builder.Services.UseAuthentication();
         }
     }
 
@@ -61,14 +60,22 @@ public class Program
 
         app.UseResponseCompression();
         app.UseHttpsRedirection();
-        app.UseStaticFiles();
+        app.MapStaticAssets();
+
+        app.MapHealthChecks("/health", new HealthCheckOptions
+        {
+            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
+        })
+        .RequireAuthorization();
 
         app.UseRouting();
 
-        app.UseCookiePolicy();
+        app.UseUserCulture();
+
         app.UseAuthentication();
         app.UseAuthorization();
 
+        app.UseRateLimiter();
         app.MapControllers();
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");

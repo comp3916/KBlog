@@ -6,6 +6,7 @@ using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web.Features.AboutMe.Components.Skill;
 using Microsoft.Extensions.DependencyInjection;
+using TestContext = Xunit.TestContext;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Shared.Skills;
 
@@ -15,28 +16,27 @@ public class SkillTableTests : SqlDatabaseTestBase<Skill>
     public async Task ShouldDeleteItem()
     {
         var skill = new SkillBuilder().WithSkillName("C#").Build();
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         await Repository.StoreAsync(skill);
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
-        var cut = ctx.RenderComponent<SkillTable>(p =>
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
+        var cut = ctx.Render<SkillTable>(p =>
             p.Add(s => s.ShowAdminActions, true));
-        cut.WaitForState(() => cut.HasComponent<SkillTag>());
 
-        cut.FindComponent<SkillTag>().Find("button").Click();
+        cut.WaitForComponent<SkillTag>().Find("button").Click();
 
         var items = await Repository.GetAllAsync();
-        items.Should().HaveCount(0);
-        cut.FindAll("td").Any(s => s.TextContent == "C#").Should().BeFalse();
+        items.ShouldBeEmpty();
+        cut.FindAll("td").Any(s => s.TextContent == "C#").ShouldBeFalse();
     }
 
     [Fact]
     public async Task ShouldAddSkill()
     {
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
-        var cut = ctx.RenderComponent<SkillTable>(p =>
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
+        var cut = ctx.Render<SkillTable>(p =>
             p.Add(s => s.ShowAdminActions, true));
         cut.Find("button").Click();
         var dialog = cut.FindComponent<AddSkillDialog>();
@@ -45,71 +45,71 @@ public class SkillTableTests : SqlDatabaseTestBase<Skill>
         dialog.Find("#capability").Change("capability");
         dialog.Find("#proficiency").Change(ProficiencyLevel.Expert.Key);
 
-        dialog.Find("form").Submit();
+        await dialog.Find("form").SubmitAsync();
 
-        cut.WaitForState(() => cut.HasComponent<SkillTag>());
-        var skillTag = cut.FindComponent<SkillTag>();
-        skillTag.Find("span").Text().Should().Contain("C#");
+        var skillTag = cut.WaitForComponent<SkillTag>();
+        skillTag.Find("span").Text().ShouldContain("C#");
         var fromRepo = (await Repository.GetAllAsync())[0];
-        fromRepo.Name.Should().Be("C#");
-        fromRepo.IconUrl.Should().Be("Url");
-        fromRepo.Capability.Should().Be("capability");
-        fromRepo.ProficiencyLevel.Should().Be(ProficiencyLevel.Expert);
+        fromRepo.Name.ShouldBe("C#");
+        fromRepo.IconUrl.ShouldBe("Url");
+        fromRepo.Capability.ShouldBe("capability");
+        fromRepo.ProficiencyLevel.ShouldBe(ProficiencyLevel.Expert);
     }
 
     [Fact]
     public async Task ShouldNotAllowToEditSkillTagsWhenNotAdmin()
     {
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         var skill = new SkillBuilder().Build();
         await Repository.StoreAsync(skill);
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
 
-        var cut = ctx.RenderComponent<SkillTable>(p =>
+        var cut = ctx.Render<SkillTable>(p =>
             p.Add(s => s.ShowAdminActions, false));
 
-        cut.WaitForState(() => cut.FindComponents<SkillTag>().Any());
-        cut.FindComponent<SkillTag>().Instance.ShowAdminActions.Should().BeFalse();
+        cut.WaitForComponent<SkillTag>().Instance.ShowAdminActions.ShouldBeFalse();
     }
 
     [Fact]
     public async Task ShouldUpdateProficiencyWhenSkillTagDragged()
     {
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         var skill = new SkillBuilder().WithProficiencyLevel(ProficiencyLevel.Familiar).Build();
-        await DbContext.AddAsync(skill);
-        await DbContext.SaveChangesAsync();
+        await DbContext.AddAsync(skill, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
-        var cut = ctx.RenderComponent<SkillTable>(p =>
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
+        var cut = ctx.Render<SkillTable>(p =>
             p.Add(s => s.ShowAdminActions, true));
-        cut.WaitForState(() => cut.FindAll(".skill-tag").Any());
+        cut.WaitForElement(".skill-tag");
 
         cut.FindAll(".skill-tag")[0].Drag();
         cut.FindAll(".proficiency-level")[1].Drop();
 
         var skillFromDb = await Repository.GetByIdAsync(skill.Id);
-        skillFromDb.ProficiencyLevel.Should().Be(ProficiencyLevel.Proficient);
+        skillFromDb.ShouldNotBeNull();
+        skillFromDb.ProficiencyLevel.ShouldBe(ProficiencyLevel.Proficient);
     }
 
     [Fact]
     public async Task ShouldStayOnSameProficiencyWhenDroppedOnSameProficiencyLevel()
     {
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         var skill = new SkillBuilder().WithProficiencyLevel(ProficiencyLevel.Familiar).Build();
-        await DbContext.AddAsync(skill);
-        await DbContext.SaveChangesAsync();
+        await DbContext.AddAsync(skill, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
-        var cut = ctx.RenderComponent<SkillTable>(p =>
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
+        var cut = ctx.Render<SkillTable>(p =>
             p.Add(s => s.ShowAdminActions, true));
-        cut.WaitForState(() => cut.FindAll(".skill-tag").Any());
+        cut.WaitForElement(".skill-tag");
 
         cut.FindAll(".skill-tag")[0].Drag();
         cut.FindAll(".proficiency-level")[0].Drop();
 
         var skillFromDb = await Repository.GetByIdAsync(skill.Id);
-        skillFromDb.ProficiencyLevel.Should().Be(ProficiencyLevel.Familiar);
+        skillFromDb.ShouldNotBeNull();
+        skillFromDb.ProficiencyLevel.ShouldBe(ProficiencyLevel.Familiar);
     }
 }

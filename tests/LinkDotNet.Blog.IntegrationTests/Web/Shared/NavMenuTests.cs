@@ -1,15 +1,16 @@
 ﻿using System.Linq;
 using AngleSharp.Html.Dom;
-using AngleSharpWrappers;
 using LinkDotNet.Blog.Domain;
+using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web;
 using LinkDotNet.Blog.Web.Features.Home.Components;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Shared;
 
-public class NavMenuTests : TestContext
+public class NavMenuTests : BunitContext
 {
     public NavMenuTests()
     {
@@ -19,89 +20,89 @@ public class NavMenuTests : TestContext
     [Fact]
     public void ShouldNavigateToSearchPage()
     {
-        Services.AddScoped(_ => new AppConfiguration());
-        this.AddTestAuthorization();
+        Services.AddScoped(_ => Options.Create(new ApplicationConfigurationBuilder().Build()));
+        AddAuthorization();
         var navigationManager = Services.GetRequiredService<NavigationManager>();
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
         cut.FindComponent<SearchInput>().Find("input").Change("Text");
 
         cut.FindComponent<SearchInput>().Find("button").Click();
 
-        navigationManager.Uri.Should().EndWith("search/Text");
+        navigationManager.Uri.ShouldEndWith("search/Text");
     }
 
     [Fact]
     public void ShouldDisplayAboutMePage()
     {
-        var config = new AppConfiguration
-        {
-            ProfileInformation = new ProfileInformation(),
-        };
+        var config = Options.Create(new ApplicationConfigurationBuilder()
+            .WithIsAboutMeEnabled(true)
+            .Build());
         Services.AddScoped(_ => config);
-        this.AddTestAuthorization();
+        AddAuthorization();
 
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         cut
             .FindAll(".nav-link").ToList()
             .Cast<IHtmlAnchorElement>()
-            .Count(a => a.Href.Contains("AboutMe")).Should().Be(1);
+            .Count(a => a.Href.Contains("AboutMe")).ShouldBe(1);
     }
 
     [Fact]
     public void ShouldPassCorrectUriToComponent()
     {
-        var config = new AppConfiguration
-        {
-            ProfileInformation = new ProfileInformation(),
-        };
+        var config = Options.Create(new ProfileInformationBuilder().Build());
         Services.AddScoped(_ => config);
-        this.AddTestAuthorization();
-        var cut = RenderComponent<NavMenu>();
+        AddAuthorization();
+        var cut = Render<NavMenu>();
 
         Services.GetRequiredService<NavigationManager>().NavigateTo("test");
 
-        cut.FindComponent<AccessControl>().Instance.CurrentUri.Should().Contain("test");
+        cut.FindComponent<AccessControl>().Instance.CurrentUri.ShouldContain("test");
     }
 
     [Fact]
     public void ShouldShowBrandImageIfAvailable()
     {
-        var config = new AppConfiguration
-        {
-            ProfileInformation = new ProfileInformation(),
-            BlogBrandUrl = "http://localhost/img.png",
-        };
+        var config = Options.Create(new ApplicationConfigurationBuilder()
+            .WithBlogBrandUrl("http://localhost/img.png")
+            .Build());
         Services.AddScoped(_ => config);
-        this.AddTestAuthorization();
+        
+        var profileInfoConfig = Options.Create(new ProfileInformationBuilder().Build());
+        Services.AddScoped(_ => profileInfoConfig);
 
-        var cut = RenderComponent<NavMenu>();
+        AddAuthorization();
+
+        var cut = Render<NavMenu>();
 
         var brandImage = cut.Find(".nav-brand img");
-        var image = brandImage.Unwrap() as IHtmlImageElement;
-        image.Should().NotBeNull();
-        image.Source.Should().Be("http://localhost/img.png");
+        var image = brandImage as IHtmlImageElement;
+        image.ShouldNotBeNull();
+        image.Source.ShouldBe("http://localhost/img.png");
     }
 
     [Theory]
-    [InlineData(null)]
+    [InlineData(null!)]
     [InlineData("")]
-    public void ShouldShowBlogNameWhenNotBrand(string brandUrl)
+    public void ShouldShowBlogNameWhenNotBrand(string? brandUrl)
     {
-        var config = new AppConfiguration
-        {
-            ProfileInformation = new ProfileInformation(),
-            BlogBrandUrl = brandUrl,
-            BlogName = "Steven",
-        };
+        var config = Options.Create(new ApplicationConfigurationBuilder()
+            .WithBlogBrandUrl(brandUrl)
+            .WithBlogName("Steven")
+            .Build());
         Services.AddScoped(_ => config);
-        this.AddTestAuthorization();
+        
+        var profileInfoConfig = Options.Create(new ProfileInformationBuilder().Build());
+        Services.AddScoped(_ => profileInfoConfig);
+        
+        AddAuthorization();
 
-        var cut = RenderComponent<NavMenu>();
+        var cut = Render<NavMenu>();
 
         var brandImage = cut.Find(".nav-brand");
-        var image = brandImage.Unwrap() as IHtmlAnchorElement;
-        image.Should().NotBeNull();
-        image.TextContent.Should().Be("Steven");
+        var image = brandImage as IHtmlAnchorElement;
+        image.ShouldNotBeNull();
+        image!.TextContent.ShouldBe("Steven");
     }
 }

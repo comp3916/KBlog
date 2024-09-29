@@ -1,48 +1,47 @@
 ﻿using System;
 using LinkDotNet.Blog.Web.Features.Admin.Dashboard.Components;
-using LinkDotNet.Blog.Web.Features.Admin.Dashboard.Services;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Admin.Dashboard.Components;
 
-public class DateRangeSelectorTests : TestContext
+public class DateRangeSelectorTests : BunitContext
 {
     [Fact]
     public void ShouldSetBeginDateWhenSet()
     {
-        Filter filter = null;
-        var cut = RenderComponent<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
+        Filter? filter = null;
+        var cut = Render<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
         {
             filter = f;
         }));
 
         cut.Find("#startDate").Change(new DateOnly(2020, 1, 1));
 
-        filter.Should().NotBeNull();
-        filter.StartDate.Should().Be(new DateOnly(2020, 1, 1));
-        filter.EndDate.Should().BeNull();
+        filter.ShouldNotBeNull();
+        filter.StartDate.ShouldBe(new DateOnly(2020, 1, 1));
+        filter.EndDate.ShouldBeNull();
     }
 
     [Fact]
     public void ShouldSetEndDateWhenSet()
     {
-        Filter filter = null;
-        var cut = RenderComponent<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
+        Filter? filter = null;
+        var cut = Render<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
         {
             filter = f;
         }));
 
         cut.Find("#endDate").Change(new DateOnly(2020, 1, 1));
 
-        filter.Should().NotBeNull();
-        filter.EndDate.Should().Be(new DateOnly(2020, 1, 1));
-        filter.StartDate.Should().BeNull();
+        filter.ShouldNotBeNull();
+        filter.EndDate.ShouldBe(new DateOnly(2020, 1, 1));
+        filter.StartDate.ShouldBeNull();
     }
 
     [Fact]
     public void ShouldReset()
     {
-        Filter filter = null;
-        var cut = RenderComponent<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
+        Filter? filter = null;
+        var cut = Render<DateRangeSelector>(p => p.Add(s => s.FilterChanged, f =>
         {
             filter = f;
         }));
@@ -52,7 +51,8 @@ public class DateRangeSelectorTests : TestContext
         cut.Find("#startDate").Change(string.Empty);
         cut.Find("#endDate").Change(string.Empty);
 
-        filter.StartDate.Should().BeNull();
-        filter.EndDate.Should().BeNull();
+        filter.ShouldNotBeNull();
+        filter.StartDate.ShouldBeNull();
+        filter.EndDate.ShouldBeNull();
     }
 }

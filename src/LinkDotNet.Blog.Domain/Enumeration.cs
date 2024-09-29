@@ -1,85 +1,48 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Frozen;
 using System.Linq;
 using System.Reflection;
 
 namespace LinkDotNet.Blog.Domain;
 
+#pragma warning disable CA1724
 public abstract class Enumeration<TEnumeration>
    where TEnumeration : Enumeration<TEnumeration>
+#pragma warning restore
 {
-    protected Enumeration()
-    {
-    }
-
     protected Enumeration(string key)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("The enum key cannot be null or empty", nameof(key));
-        }
-
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
         Key = key;
     }
 
-    public static IReadOnlyCollection<TEnumeration> All => GetEnumerations();
+    public static FrozenSet<TEnumeration> All { get; } = GetEnumerations();
 
     public string Key { get; }
 
-    public static bool operator ==(Enumeration<TEnumeration> a, Enumeration<TEnumeration> b)
-    {
-        if (a is null || b is null)
-        {
-            return false;
-        }
+    public static bool operator ==(Enumeration<TEnumeration>? a, Enumeration<TEnumeration>? b)
+        => a is not null && b is not null && a.Key.Equals(b.Key, StringComparison.Ordinal);
 
-        return a.Key.Equals(b.Key);
-    }
-
-    public static bool operator !=(Enumeration<TEnumeration> a, Enumeration<TEnumeration> b)
-    {
-        return !(a == b);
-    }
+    public static bool operator !=(Enumeration<TEnumeration>? a, Enumeration<TEnumeration>? b) => !(a == b);
 
     public static TEnumeration Create(string key)
-    {
-        var enumeration = All.SingleOrDefault(p => p.Key == key);
+        => All.SingleOrDefault(p => p.Key == key)
+           ?? throw new InvalidOperationException($"{key} is not a valid value for {typeof(TEnumeration).Name}");
 
-        if (enumeration is null)
-        {
-            throw new InvalidOperationException($"{key} is not a valid value for {typeof(TEnumeration).Name}");
-        }
+    public override int GetHashCode() => Key.GetHashCode(StringComparison.Ordinal);
 
-        return enumeration;
-    }
-
-    public override int GetHashCode() => Key.GetHashCode();
-
-    public override bool Equals(object obj)
-    {
-        if (obj is null)
-        {
-            return false;
-        }
-
-        if (obj.GetType() != typeof(TEnumeration))
-        {
-            return false;
-        }
-
-        return ((TEnumeration)obj).Key == Key;
-    }
+    public override bool Equals(object? obj) => obj?.GetType() == typeof(TEnumeration) && ((TEnumeration)obj).Key == Key;
 
     public override string ToString() => Key;
 
-    private static TEnumeration[] GetEnumerations()
+    private static FrozenSet<TEnumeration> GetEnumerations()
     {
         var enumerationType = typeof(TEnumeration);
 
         return enumerationType
             .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
             .Where(info => info.FieldType == typeof(TEnumeration))
-            .Select(info => (TEnumeration)info.GetValue(null))
-            .ToArray();
+            .Select(info => (TEnumeration)info.GetValue(null)!)
+            .ToFrozenSet();
     }
 }

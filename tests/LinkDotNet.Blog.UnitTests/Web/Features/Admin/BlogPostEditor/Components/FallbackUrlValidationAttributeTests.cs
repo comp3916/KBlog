@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using LinkDotNet.Blog.Web.Features.Admin.BlogPostEditor.Components;
@@ -24,8 +23,8 @@ public class FallbackUrlValidationAttributeTests
 
         var result = Validator.TryValidateObject(model, validationContext, results, true);
 
-        result.Should().BeFalse();
-        results.Count.Should().Be(1);
+        result.ShouldBeFalse();
+        results.Count.ShouldBe(1);
     }
 
     [Fact]
@@ -44,6 +43,6 @@ public class FallbackUrlValidationAttributeTests
 
         var result = Validator.TryValidateObject(model, validationContext, results, true);
 
-        result.Should().BeTrue();
+        result.ShouldBeTrue();
     }
 }

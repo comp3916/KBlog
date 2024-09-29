@@ -1,28 +1,35 @@
 ﻿using System;
 using System.Linq;
 using AngleSharp.Html.Dom;
-using AngleSharpWrappers;
 using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.TestUtilities;
+using LinkDotNet.Blog.TestUtilities.Fakes;
 using LinkDotNet.Blog.Web.Features.Admin.BlogPostEditor.Components;
+using LinkDotNet.Blog.Web.Features.Components;
+using LinkDotNet.Blog.Web.Features.Services;
+using LinkDotNet.Blog.Web.Features.ShowBlogPost.Components;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using NCronJob;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Admin.BlogPostEditor.Components;
 
-public class CreateNewBlogPostTests : TestContext
+public class CreateNewBlogPostTests : BunitContext
 {
+    private readonly CacheService cacheService = new CacheService();
     public CreateNewBlogPostTests()
     {
-        ComponentFactories.AddStub<UploadFile>();
         JSInterop.SetupVoid("hljs.highlightAll");
+        ComponentFactories.Add<MarkdownTextArea, MarkdownFake>();
+        Services.AddScoped(_ => Substitute.For<IInstantJobRegistry>());
+        Services.AddScoped<ICacheInvalidator>(_ => cacheService);
     }
 
     [Fact]
     public void ShouldCreateNewBlogPostWhenValidDataGiven()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.OnBlogPostCreated, bp => blogPost = bp));
         cut.Find("#title").Input("My Title");
         cut.Find("#short").Input("My short Description");
@@ -35,16 +42,18 @@ public class CreateNewBlogPostTests : TestContext
         cut.Find("form").Submit();
 
         cut.WaitForState(() => cut.Find("#title").TextContent == string.Empty);
-        blogPost.Should().NotBeNull();
-        blogPost.Title.Should().Be("My Title");
-        blogPost.ShortDescription.Should().Be("My short Description");
-        blogPost.Content.Should().Be("My content");
-        blogPost.PreviewImageUrl.Should().Be("My preview url");
-        blogPost.PreviewImageUrlFallback.Should().Be("My fallback preview url");
-        blogPost.IsPublished.Should().BeFalse();
-        blogPost.UpdatedDate.Should().NotBe(default);
-        blogPost.Tags.Should().HaveCount(3);
-        blogPost.Tags.Select(t => t.Content).Should().Contain(new[] { "Tag1", "Tag2", "Tag3" });
+        blogPost.ShouldNotBeNull();
+        blogPost.Title.ShouldBe("My Title");
+        blogPost.ShortDescription.ShouldBe("My short Description");
+        blogPost.Content.ShouldBe("My content");
+        blogPost.PreviewImageUrl.ShouldBe("My preview url");
+        blogPost.PreviewImageUrlFallback.ShouldBe("My fallback preview url");
+        blogPost.IsPublished.ShouldBeFalse();
+        blogPost.UpdatedDate.ShouldNotBe(default);
+        blogPost.Tags.Count.ShouldBe(3);
+        blogPost.Tags.ShouldContain("Tag1");
+        blogPost.Tags.ShouldContain("Tag2");
+        blogPost.Tags.ShouldContain("Tag3");
     }
 
     [Fact]
@@ -56,8 +65,8 @@ public class CreateNewBlogPostTests : TestContext
             .WithContent("Content")
             .WithTags("tag1", "tag2")
             .Build();
-        BlogPost blogPostFromComponent = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPostFromComponent = null;
+        var cut = Render<CreateNewBlogPost>(
             p =>
                 p.Add(c => c.OnBlogPostCreated, bp => blogPostFromComponent = bp)
                  .Add(c => c.BlogPost, blogPost));
@@ -65,19 +74,19 @@ public class CreateNewBlogPostTests : TestContext
         cut.Find("form").Submit();
 
         cut.WaitForState(() => cut.Find("#title").TextContent == string.Empty);
-        blogPostFromComponent.Should().NotBeNull();
-        blogPostFromComponent.Title.Should().Be("Title");
-        blogPostFromComponent.ShortDescription.Should().Be("Desc");
-        blogPostFromComponent.Content.Should().Be("Content");
-        blogPostFromComponent.Tags.Select(t => t.Content).Should().Contain("tag1");
-        blogPostFromComponent.Tags.Select(t => t.Content).Should().Contain("tag2");
+        blogPostFromComponent.ShouldNotBeNull();
+        blogPostFromComponent.Title.ShouldBe("Title");
+        blogPostFromComponent.ShortDescription.ShouldBe("Desc");
+        blogPostFromComponent.Content.ShouldBe("Content");
+        blogPostFromComponent.Tags.ShouldContain("tag1");
+        blogPostFromComponent.Tags.ShouldContain("tag2");
     }
 
     [Fact]
     public void ShouldNotDeleteModelWhenSet()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.ClearAfterCreated, true)
                 .Add(c => c.OnBlogPostCreated, post => blogPost = post));
         cut.Find("#title").Input("My Title");
@@ -90,14 +99,14 @@ public class CreateNewBlogPostTests : TestContext
 
         cut.Find("form").Submit();
 
-        blogPost.Should().BeNull();
+        blogPost.ShouldBeNull();
     }
 
     [Fact]
     public void ShouldNotDeleteModelWhenNotSet()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.ClearAfterCreated, false)
                 .Add(c => c.OnBlogPostCreated, post => blogPost = post));
         cut.Find("#title").Input("My Title");
@@ -110,7 +119,7 @@ public class CreateNewBlogPostTests : TestContext
 
         cut.Find("form").Submit();
 
-        blogPost.Should().NotBeNull();
+        blogPost.ShouldNotBeNull();
     }
 
     [Fact]
@@ -118,8 +127,8 @@ public class CreateNewBlogPostTests : TestContext
     {
         var someWhen = new DateTime(1991, 5, 17);
         var originalBlogPost = new BlogPostBuilder().WithUpdatedDate(someWhen).Build();
-        BlogPost blogPostFromComponent = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPostFromComponent = null;
+        var cut = Render<CreateNewBlogPost>(
             p =>
                 p.Add(c => c.OnBlogPostCreated, bp => blogPostFromComponent = bp)
                     .Add(c => c.BlogPost, originalBlogPost));
@@ -132,24 +141,25 @@ public class CreateNewBlogPostTests : TestContext
         cut.Find("#updatedate").Change(false);
         cut.Find("form").Submit();
 
-        blogPostFromComponent.UpdatedDate.Should().Be(someWhen);
+        blogPostFromComponent.ShouldNotBeNull();
+        blogPostFromComponent.UpdatedDate.ShouldBe(someWhen);
     }
 
     [Fact]
     public void ShouldNotSetOptionToNotUpdateUpdatedDateOnInitialCreate()
     {
-        var cut = RenderComponent<CreateNewBlogPost>();
+        var cut = Render<CreateNewBlogPost>();
 
         var found = cut.FindAll("#updatedate");
 
-        found.Should().HaveCount(0);
+        found.ShouldBeEmpty();
     }
 
     [Fact]
     public void ShouldAcceptInputWithoutLosingFocusOrEnter()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.OnBlogPostCreated, bp => blogPost = bp));
         cut.Find("#title").Input("My Title");
         cut.Find("#short").Input("My short Description");
@@ -161,24 +171,26 @@ public class CreateNewBlogPostTests : TestContext
         cut.Find("form").Submit();
 
         cut.WaitForState(() => cut.Find("#title").TextContent == string.Empty);
-        blogPost.Should().NotBeNull();
-        blogPost.Title.Should().Be("My Title");
-        blogPost.ShortDescription.Should().Be("My short Description");
-        blogPost.Content.Should().Be("My content");
-        blogPost.PreviewImageUrl.Should().Be("My preview url");
-        blogPost.IsPublished.Should().BeFalse();
-        blogPost.Tags.Should().HaveCount(3);
-        blogPost.Tags.Select(t => t.Content).Should().Contain(new[] { "Tag1", "Tag2", "Tag3" });
+        blogPost.ShouldNotBeNull();
+        blogPost.Title.ShouldBe("My Title");
+        blogPost.ShortDescription.ShouldBe("My short Description");
+        blogPost.Content.ShouldBe("My content");
+        blogPost.PreviewImageUrl.ShouldBe("My preview url");
+        blogPost.IsPublished.ShouldBeFalse();
+        blogPost.Tags.Count.ShouldBe(3);
+        blogPost.Tags.ShouldContain("Tag1");
+        blogPost.Tags.ShouldContain("Tag2");
+        blogPost.Tags.ShouldContain("Tag3");
     }
 
     [Fact]
     public void ShouldStopExternalNavigationWhenDirty()
     {
-        var cut = RenderComponent<CreateNewBlogPost>();
+        var cut = Render<CreateNewBlogPost>();
 
         cut.Find("#title").Input("Hey");
 
-        cut.FindComponent<NavigationLock>().Instance.ConfirmExternalNavigation.Should().BeTrue();
+        cut.FindComponent<NavigationLock>().Instance.ConfirmExternalNavigation.ShouldBeTrue();
     }
 
     [Fact]
@@ -186,35 +198,35 @@ public class CreateNewBlogPostTests : TestContext
     {
         JSInterop.Setup<bool>("confirm", "You have unsaved changes. Are you sure you want to continue?")
             .SetResult(false);
-        var cut = RenderComponent<CreateNewBlogPost>();
+        var cut = Render<CreateNewBlogPost>();
         cut.Find("#tags").Change("Hey");
-        var fakeNavigationManager = Services.GetRequiredService<FakeNavigationManager>();
+        var fakeNavigationManager = Services.GetRequiredService<BunitNavigationManager>();
 
         fakeNavigationManager.NavigateTo("/internal");
 
-        fakeNavigationManager.History.Count.Should().Be(1);
-        fakeNavigationManager.History.Single().State.Should().Be(NavigationState.Prevented);
+        fakeNavigationManager.History.Count.ShouldBe(1);
+        fakeNavigationManager.History.Single().State.ShouldBe(NavigationState.Prevented);
     }
 
     [Fact]
     public void ShouldNotBlogNavigationOnInitialLoad()
     {
         var blogPost = new BlogPostBuilder().Build();
-        RenderComponent<CreateNewBlogPost>(
+        Render<CreateNewBlogPost>(
             p => p.Add(s => s.BlogPost, blogPost));
-        var fakeNavigationManager = Services.GetRequiredService<FakeNavigationManager>();
+        var fakeNavigationManager = Services.GetRequiredService<BunitNavigationManager>();
 
         fakeNavigationManager.NavigateTo("/internal");
 
-        fakeNavigationManager.History.Count.Should().Be(1);
-        fakeNavigationManager.History.Single().State.Should().Be(NavigationState.Succeeded);
+        fakeNavigationManager.History.Count.ShouldBe(1);
+        fakeNavigationManager.History.Single().State.ShouldBe(NavigationState.Succeeded);
     }
 
     [Fact]
     public void GivenBlogPostWithSchedule_ShouldSetSchedule()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.OnBlogPostCreated, bp => blogPost = bp));
         cut.Find("#title").Input("My Title");
         cut.Find("#short").Input("My short Description");
@@ -225,14 +237,15 @@ public class CreateNewBlogPostTests : TestContext
 
         cut.Find("form").Submit();
 
-        blogPost.ScheduledPublishDate.Should().Be(new DateTime(2099, 01, 01));
+        blogPost.ShouldNotBeNull();
+        blogPost.ScheduledPublishDate.ShouldBe(new DateTime(2099, 01, 01));
     }
 
     [Fact]
     public void GivenBlogPost_WhenEnteringScheduledDate_ThenIsPublishedSetToFalse()
     {
-        BlogPost blogPost = null;
-        var cut = RenderComponent<CreateNewBlogPost>(
+        BlogPost? blogPost = null;
+        var cut = Render<CreateNewBlogPost>(
             p => p.Add(c => c.OnBlogPostCreated, bp => blogPost = bp));
         cut.Find("#title").Input("My Title");
         cut.Find("#short").Input("My short Description");
@@ -242,7 +255,25 @@ public class CreateNewBlogPostTests : TestContext
 
         cut.Find("#scheduled").Change("01/01/2099 00:00");
 
-        var element = cut.Find("#published").Unwrap() as IHtmlInputElement;
-        element.IsChecked.Should().BeFalse();
+        var element = cut.Find("#published") as IHtmlInputElement;
+        element.ShouldNotBeNull();
+        element.IsChecked.ShouldBeFalse();
+    }
+    
+    [Fact]
+    public void GivenBlogPost_WhenCacheInvalidatedOptionIsSet_CacheIsInvalidated()
+    {
+        var cut = Render<CreateNewBlogPost>();
+        var token = cacheService.Token;
+        cut.Find("#title").Input("My Title");
+        cut.Find("#short").Input("My short Description");
+        cut.Find("#content").Input("My content");
+        cut.Find("#preview").Change("My preview url");
+        cut.Find("#published").Change(false);
+        cut.Find("#invalidate-cache").Change(true);
+
+        cut.Find("form").Submit();
+
+        token.IsCancellationRequested.ShouldBeTrue();
     }
 }

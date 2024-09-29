@@ -2,9 +2,11 @@
 
 public sealed record ProfileInformation
 {
-    public string Name { get; init; }
+    public const string ProfileInformationSection = "ProfileInformation";
 
-    public string Heading { get; init; }
+    public required string Name { get; init; }
 
-    public string ProfilePictureUrl { get; init; }
+    public required string Heading { get; init; }
+
+    public required string ProfilePictureUrl { get; init; }
 }

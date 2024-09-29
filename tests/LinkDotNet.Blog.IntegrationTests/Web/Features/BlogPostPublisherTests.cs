@@ -4,22 +4,22 @@ using System.Threading.Tasks;
 using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.TestUtilities;
 using LinkDotNet.Blog.Web.Features;
-using Microsoft.Extensions.DependencyInjection;
+using LinkDotNet.Blog.Web.Features.Services;
 using Microsoft.Extensions.Logging;
+using NCronJob;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Features;
 
-public sealed class BlogPostPublisherTests : SqlDatabaseTestBase<BlogPost>, IDisposable
+public sealed class BlogPostPublisherTests : SqlDatabaseTestBase<BlogPost>
 {
     private readonly BlogPostPublisher sut;
+    private readonly ICacheInvalidator cacheInvalidator;
 
     public BlogPostPublisherTests()
     {
-        var serviceProvider = new ServiceCollection()
-            .AddScoped(_ => Repository)
-            .BuildServiceProvider();
+        cacheInvalidator = Substitute.For<ICacheInvalidator>();
 
-        sut = new BlogPostPublisher(serviceProvider, Mock.Of<ILogger<BlogPostPublisher>>());
+        sut = new BlogPostPublisher(Repository, cacheInvalidator, Substitute.For<ILogger<BlogPostPublisher>>());
     }
 
     [Fact]
@@ -33,12 +33,30 @@ public sealed class BlogPostPublisherTests : SqlDatabaseTestBase<BlogPost>, IDis
         await Repository.StoreAsync(bp2);
         await Repository.StoreAsync(bp3);
 
-        await sut.StartAsync(CancellationToken.None);
+        await sut.RunAsync(Substitute.For<IJobExecutionContext>(), CancellationToken.None);
 
-        (await Repository.GetByIdAsync(bp1.Id)).IsPublished.Should().BeTrue();
-        (await Repository.GetByIdAsync(bp2.Id)).IsPublished.Should().BeTrue();
-        (await Repository.GetByIdAsync(bp3.Id)).IsPublished.Should().BeFalse();
+        (await Repository.GetByIdAsync(bp1.Id))!.IsPublished.ShouldBeTrue();
+        (await Repository.GetByIdAsync(bp2.Id))!.IsPublished.ShouldBeTrue();
+        (await Repository.GetByIdAsync(bp3.Id))!.IsPublished.ShouldBeFalse();
     }
+    
+    [Fact]
+    public async Task ShouldInvalidateCacheWhenPublishing()
+    {
+        var now = DateTime.Now;
+        var bp1 = new BlogPostBuilder().WithScheduledPublishDate(now.AddHours(-3)).IsPublished(false).Build();
+        await Repository.StoreAsync(bp1);
 
-    public void Dispose() => sut?.Dispose();
+        await sut.RunAsync(Substitute.For<IJobExecutionContext>(), CancellationToken.None);
+
+        cacheInvalidator.Received().Cancel();
+    }
+    
+    [Fact]
+    public async Task ShouldNotInvalidateCacheWhenThereIsNothingToPublish()
+    {
+        await sut.RunAsync(Substitute.For<IJobExecutionContext>(), CancellationToken.None);
+
+        cacheInvalidator.DidNotReceive().Cancel();
+    }
 }

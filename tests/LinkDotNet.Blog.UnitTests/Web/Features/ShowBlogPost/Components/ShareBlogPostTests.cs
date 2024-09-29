@@ -1,50 +1,46 @@
 ﻿using System;
 using System.Linq;
 using AngleSharp.Html.Dom;
-using AngleSharpWrappers;
-using Blazored.Toast.Services;
 using LinkDotNet.Blog.Web.Features.ShowBlogPost.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.ShowBlogPost.Components;
 
-public class ShareBlogPostTests : TestContext
+public class ShareBlogPostTests : BunitContext
 {
     [Fact]
     public void ShouldCopyLinkToClipboard()
     {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddScoped(_ => Mock.Of<IToastService>());
-        Services.GetRequiredService<FakeNavigationManager>().NavigateTo("blogPost/1");
-        var cut = RenderComponent<ShareBlogPost>();
+        Services.GetRequiredService<BunitNavigationManager>().NavigateTo("blogPost/1");
+        var cut = Render<ShareBlogPost>();
 
-        cut.Find("#share-clipboard").Click();
+        var element = cut.Find("#share-clipboard") as IHtmlAnchorElement;
 
-        var copyToClipboardInvocation = JSInterop.Invocations.SingleOrDefault(i => i.Identifier == "navigator.clipboard.writeText");
-        copyToClipboardInvocation.Arguments[0].Should().Be("http://localhost/blogPost/1");
+        element.ShouldNotBeNull();
+        var onclick = element!.Attributes.FirstOrDefault(a => a.Name.Equals("onclick", StringComparison.InvariantCultureIgnoreCase));
+        onclick.ShouldNotBeNull();
+        onclick!.Value.ShouldContain("blogPost/1");
     }
 
     [Fact]
     public void ShouldShareToLinkedIn()
     {
-        Services.AddScoped(_ => Mock.Of<IToastService>());
-        Services.GetRequiredService<FakeNavigationManager>().NavigateTo("blogPost/1");
+        Services.GetRequiredService<BunitNavigationManager>().NavigateTo("blogPost/1");
 
-        var cut = RenderComponent<ShareBlogPost>();
+        var cut = Render<ShareBlogPost>();
 
-        var linkedInShare = (IHtmlAnchorElement)cut.Find("#share-linkedin").Unwrap();
-        linkedInShare.Href.Should().Be("https://www.linkedin.com/shareArticle?mini=true&url=http://localhost/blogPost/1");
+        var linkedInShare = (IHtmlAnchorElement)cut.Find("#share-linkedin");
+        linkedInShare.Href.ShouldBe("https://www.linkedin.com/shareArticle?mini=true&url=http://localhost/blogPost/1");
     }
-
+    
     [Fact]
-    public void ShouldNotCrashWhenCopyingLinkNotWorking()
+    public void ShouldShareToX()
     {
-        Services.AddScoped(_ => Mock.Of<IToastService>());
-        JSInterop.SetupVoid(s => s.InvocationMethodName == "navigator.clipboard.writeText").SetException(new Exception());
-        var cut = RenderComponent<ShareBlogPost>();
+        Services.GetRequiredService<BunitNavigationManager>().NavigateTo("blogPost/1");
 
-        var act = () => cut.Find("#share-clipboard").Click();
+        var cut = Render<ShareBlogPost>();
 
-        act.Should().NotThrow<Exception>();
+        var linkedInShare = (IHtmlAnchorElement)cut.Find("#share-x");
+        linkedInShare.Href.ShouldBe("https://twitter.com/intent/tweet?url=http://localhost/blogPost/1");
     }
 }

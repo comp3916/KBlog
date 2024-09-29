@@ -1,11 +1,5 @@
-﻿@using System.Net
-@using System.Text.RegularExpressions
-@using System.Web
 @using LinkDotNet.Blog.Domain
-@using LinkDotNet.Blog.Web.Features.Services
-@using Microsoft.Extensions.Caching.Memory
 
-@inject IMemoryCache MemoryCache
 <article>
 	<div class="blog-card @AltCssClass">
 		<div class="meta">
@@ -23,19 +17,19 @@
 				{
 					<li class="draft">Draft</li>
 				}
-				<li class="date me-4"><span>@BlogPost.UpdatedDate.ToString("dd/MM/yyyy")</span></li>
-				@if (BlogPost.Tags != null && BlogPost.Tags.Any())
+				<li class="date me-4"><span>@BlogPost.UpdatedDate.ToShortDateString()</span></li>
+				@if (BlogPost.Tags.Any())
 				{
 					<li class="tags me-4">
 						<ul>
-							@foreach (var tag in BlogPost.Tags.Select(t => t.Content))
+							@foreach (var tag in BlogPost.Tags)
 							{
 								<li><a class="goto-tag" href="/searchByTag/@(Uri.EscapeDataString(tag))">@tag</a></li>
 							}
 						</ul>
 					</li>
 				}
-				<li class="read-time me-4">@readingTime min</li>
+				<li class="read-time me-4">@BlogPost.ReadingTimeInMinutes min</li>
 			</ul>
 		</div>
 		<div class="description">
@@ -43,17 +37,15 @@
 			<h2></h2>
 			<p>@MarkdownConverter.ToMarkupString(BlogPost.ShortDescription)</p>
 			<p class="read-more">
-				<a href="/blogPost/@BlogPost.Id" aria-label="@BlogPost.Title">Read the whole article</a>
+                <a href="/blogPost/@BlogPost.Id/@BlogPost.Slug" aria-label="@BlogPost.Title">Read the whole article</a>
 			</p>
 		</div>
 	</div>
 </article>
 
 @code {
-	private int readingTime;
-
-	[Parameter]
-	public BlogPost BlogPost { get; set; }
+	[Parameter, EditorRequired]
+	public required BlogPost BlogPost { get; set; }
 
 	[Parameter]
 	public bool UseAlternativeStyle { get; set; }
@@ -63,13 +55,24 @@
 
 	private string AltCssClass => UseAlternativeStyle ? "alt" : string.Empty;
 
-	protected override void OnInitialized()
+	public override Task SetParametersAsync(ParameterView parameters)
 	{
-		var key = "reading-time-" + BlogPost.Id;
-		readingTime = MemoryCache.GetOrCreate(key, entry =>
+		foreach (var parameter in parameters)
 		{
-			entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
-			return ReadingTimeCalculator.CalculateReadingTime(BlogPost.Content);
-		});
+			switch (parameter.Name)
+			{
+				case nameof(BlogPost):
+					BlogPost = (BlogPost)parameter.Value;
+					break;
+				case nameof(UseAlternativeStyle):
+					UseAlternativeStyle = (bool)parameter.Value;
+					break;
+				case nameof(LazyLoadPreviewImage):
+					LazyLoadPreviewImage = (bool)parameter.Value;
+					break;
+			}
+		}
+
+		return base.SetParametersAsync(ParameterView.Empty);
 	}
 }

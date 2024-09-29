@@ -397,36 +397,33 @@ dotnet_naming_rule.parameters_rule.severity             = warning
 # Code Analyzers Rules
 ##########################################
 
-# AsyncFixer
-# http://www.asyncfixer.com
-
-
-# Meziantou
-# https://www.meziantou.net/enforcing-asynchronous-code-good-practices-using-a-roslyn-analyzer.htm
-dotnet_diagnostic.MA0003.severity = suggestion      # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0003.md
-dotnet_diagnostic.MA0004.severity = suggestion      # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0004.md
-dotnet_diagnostic.MA0016.severity = error           # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0016.md
-dotnet_diagnostic.MA0025.severity = suggestion      # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0025.md
-dotnet_diagnostic.MA0026.severity = suggestion      # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0026.md
-dotnet_diagnostic.MA0028.severity = none            # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/Meziantou/MA0028.md
-
-
 # Microsoft - Code Analysis
 # https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/
+dotnet_diagnostic.CA1515.severity = none            # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/MicrosoftCodeAnalysis/CA1515.md
 dotnet_diagnostic.CA1707.severity = error           # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/MicrosoftCodeAnalysis/CA1707.md
 dotnet_diagnostic.CA2007.severity = none            # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/MicrosoftCodeAnalysis/CA2007.md
 
 
 # SonarAnalyzer.CSharp
 # https://rules.sonarsource.com/csharp
-dotnet_diagnostic.S1135.severity = suggestion       # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/SonarAnalyzerCSharp/S1135.md
+dotnet_diagnostic.S1118.severity = none       # Add a 'protected' constructor or the 'static' keyword to the class declaration.
+dotnet_diagnostic.S1135.severity = suggestion # https://github.com/atc-net/atc-coding-rules/blob/main/documentation/CodeAnalyzersRules/SonarAnalyzerCSharp/S1135.md
+dotnet_diagnostic.S2583.severity = suggestion # Change this condition so that it does not always evaluate to 'False'.
+dotnet_diagnostic.S3875.severity = none       # Remove this overload of 'operator =='.
 
 ##########################################
 # Custom - Code Analyzers Rules
 ##########################################
 
 # Visual Studio
+dotnet_diagnostic.IDE0005.severity = none # IDE0005: Using directive is unnecessary
+dotnet_diagnostic.IDE0035.severity = warning # IDE0035: Remove unreachable code
+dotnet_diagnostic.IDE0021.severity = suggestion # IDE0021: Use expression body for constructor
+dotnet_diagnostic.IDE0022.severity = suggestion # IDE0022: Use expression body for method
+dotnet_diagnostic.IDE0055.severity = none # IDE0055: Fix formatting
+dotnet_diagnostic.IDE0058.severity = none # IDE0058: Expression value is never used
 dotnet_diagnostic.IDE0079.severity = warning # IDE0079: Remove unnecessary suppression
+dotnet_diagnostic.IDE0290.severity = none # IDE0290: Use primary constructor
 
 # AsyncFixer
 
@@ -438,10 +435,17 @@ dotnet_diagnostic.MA0018.severity = none # MA0018: Do not declare static members
 
 # Microsoft - Code Analysis
 # https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/
+dotnet_diagnostic.CA1000.severity = none # CA1000: Do not declare static members on generic types
 dotnet_diagnostic.CA1014.severity = none # CA1014: Mark assemblies with CLSCompliant
 dotnet_diagnostic.CA1031.severity = suggestion # CA1031: Do not catch general exception types
 dotnet_diagnostic.CA1032.severity = none # CA1032: Implement standard exception constructors
+dotnet_diagnostic.CA1052.severity = none # CA1052: Static holder types should be Static or NotInheritable
+dotnet_diagnostic.CA1054.severity = none # CA1054: URI-like parameters should not be strings
+dotnet_diagnostic.CA1055.severity = none # CA1055: Uri return values should not be strings
+dotnet_diagnostic.CA1056.severity = none # CA1056: Uri properties should not be strings
+dotnet_diagnostic.CA1812.severity = none # CA1812: Avoid uninstantiated internal classes
 dotnet_diagnostic.CA2201.severity = suggestion # CA2201: Do not raise reserved exception types
+dotnet_diagnostic.CA2227.severity = suggestion # CA2227: Collection properties should be read only
 
 # SonarAnalyzer.CSharp
 # https://rules.sonarsource.com/csharp
@@ -500,3 +504,4 @@ dotnet_diagnostic.S125.severity = none # S125: Sections of code should not be co
 dotnet_diagnostic.S3459.severity = none # S3459: Unassigned members should be removed
 dotnet_diagnostic.S3871.severity = none # S3871: Exception types should be "public"
 dotnet_diagnostic.S1186.severity = none # S1186: Methods should not be empty
+dotnet_diagnostic.S6608.severity = none # S6608: Indexing at Count-1 should be used instead of "Enumerable" extension method "Last"

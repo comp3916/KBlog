@@ -1,27 +1,25 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 
 namespace LinkDotNet.Blog.Infrastructure;
 
+[DebuggerDisplay("PagedList<{typeof(T).Name}>, Count = {Count}")]
 public sealed class PagedList<T> : IPagedList<T>
 {
-    public static readonly PagedList<T> Empty = new(Enumerable.Empty<T>(), 0, 0, 0);
+    public static readonly PagedList<T> Empty = new([], 0, 0, 0);
 
     private readonly IReadOnlyList<T> subset;
     private readonly int totalPages;
 
-    public PagedList(IEnumerable<T> items, int pageNumber, int pageSize)
-        : this(items, items.Count(), pageNumber, pageSize)
+    public PagedList(IReadOnlyList<T> items, int totalCount, int pageNumber, int pageSize)
     {
-    }
+        ArgumentNullException.ThrowIfNull(items);
 
-    public PagedList(IEnumerable<T> items, int count, int pageNumber, int pageSize)
-    {
         PageNumber = pageNumber;
-        totalPages = (int)Math.Ceiling(count / (double)pageSize);
-        subset = items as IReadOnlyList<T> ?? items.ToArray();
+        totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        subset = items;
     }
 
     public int PageNumber { get; }

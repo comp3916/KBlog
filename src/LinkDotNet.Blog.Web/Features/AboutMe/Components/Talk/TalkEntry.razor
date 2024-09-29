@@ -3,7 +3,7 @@
 <li class="pb-1">
     <div class="row">
         <div class="col-10" id="talk-display-content">
-            <p class="text-body-secondary mb-0 small">@Talk.PublishedDate.ToString("dd/MM/yyyy")</p>
+            <p class="text-body-secondary mb-0 small">@Talk.PublishedDate.ToShortDateString()</p>
             <strong class="fs-5">@Talk.PresentationTitle</strong>
             <p id="talk-place" class="text-body-secondary">@Talk.Place</p>
             <div id="talk-description">
@@ -29,6 +29,27 @@
     [Parameter]
     public EventCallback TalkDeleted { get; set; }
 
-    [Parameter]
-    public Talk Talk { get; set; }
+    [Parameter, EditorRequired]
+    public required Talk Talk { get; set; }
+
+	public override Task SetParametersAsync(ParameterView parameters)
+	{
+		foreach (var parameter in parameters)
+		{
+			switch (parameter.Name)
+			{
+				case nameof(Talk):
+					Talk = (Talk)parameter.Value;
+					break;
+				case nameof(ShowAdminActions):
+					ShowAdminActions = (bool)parameter.Value;
+					break;
+				case nameof(TalkDeleted):
+					TalkDeleted = (EventCallback)parameter.Value;
+					break;
+			}
+		}
+
+		return base.SetParametersAsync(ParameterView.Empty);
+	}
 }

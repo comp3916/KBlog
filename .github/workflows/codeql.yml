@@ -1,4 +1,4 @@
-﻿name: "CodeQL"
+name: "CodeQL"
 
 on:
   schedule:
@@ -22,18 +22,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v3.0.3
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
-          include-prerelease: true
+          dotnet-version: |
+            7.0.x
+            8.0.x
+            9.0.x
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3

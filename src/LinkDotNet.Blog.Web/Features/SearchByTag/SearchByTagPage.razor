@@ -2,9 +2,7 @@
 @using LinkDotNet.Blog.Domain
 @using LinkDotNet.Blog.Infrastructure
 @using LinkDotNet.Blog.Infrastructure.Persistence
-@using LinkDotNet.Blog.Web.Features.Services
 @inject IRepository<BlogPost> BlogPostRepository
-@inject IUserRecordService UserRecordService
 
 <PageTitle>Search for tag: @Tag</PageTitle>
 
@@ -15,23 +13,15 @@
     <ShortBlogPost BlogPost="blogPosts[i]" UseAlternativeStyle="@(i % 2 != 0)"></ShortBlogPost>
 }
 @code {
-    [Parameter]
-    public string Tag { get; set; }
+    [Parameter, EditorRequired]
+    public required string Tag { get; set; }
 
     IReadOnlyList<BlogPost> blogPosts = PagedList<BlogPost>.Empty;
     protected override async Task OnParametersSetAsync()
     {
         Tag = Uri.UnescapeDataString(Tag);
         blogPosts = await BlogPostRepository.GetAllAsync(
-            b => b.IsPublished && b.Tags.Any(t => t.Content == Tag),
+            b => b.IsPublished && b.Tags.Any(t => t == Tag),
             b => b.UpdatedDate);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await UserRecordService.StoreUserRecordAsync();
-        }
     }
 }

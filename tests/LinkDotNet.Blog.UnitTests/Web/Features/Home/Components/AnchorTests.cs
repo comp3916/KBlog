@@ -1,34 +1,33 @@
 using System.Linq;
 using AngleSharp.Html.Dom;
-using AngleSharpWrappers;
 using LinkDotNet.Blog.Web.Features.Home.Components;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.Home.Components;
 
-public class AnchorTests : TestContext
+public class AnchorTests : BunitContext
 {
     [Fact]
     public void ShouldShowHrefWhenNotEmpty()
     {
-        var cut = RenderComponent<Anchor>(ps => ps
+        var cut = Render<Anchor>(ps => ps
             .Add(p => p.Href, "http://url/")
             .Add(p => p.CssClass, "page"));
 
-        var anchor = cut.Find("a").Unwrap() as IHtmlAnchorElement;
-        anchor.Should().NotBeNull();
-        anchor.Href.Should().Be("http://url/");
-        anchor.GetAttribute("class").Should().Be("page");
+        var anchor = cut.Find("a") as IHtmlAnchorElement;
+        anchor.ShouldNotBeNull();
+        anchor.Href.ShouldBe("http://url/");
+        anchor.GetAttribute("class").ShouldBe("page");
     }
 
     [Fact]
     public void ShouldNotShowHrefWhenEmpty()
     {
-        var cut = RenderComponent<Anchor>(ps => ps
+        var cut = Render<Anchor>(ps => ps
             .Add(p => p.Href, string.Empty)
             .Add(p => p.CssClass, "page"));
 
-        var anchor = cut.Find("a").Unwrap() as IHtmlAnchorElement;
-        anchor.Should().NotBeNull();
-        anchor.Attributes.Count(a => a.Name == "href").Should().Be(0);
+        var anchor = cut.Find("a") as IHtmlAnchorElement;
+        anchor.ShouldNotBeNull();
+        anchor.Attributes.Any(a => a.Name == "href").ShouldBeFalse();
     }
 }

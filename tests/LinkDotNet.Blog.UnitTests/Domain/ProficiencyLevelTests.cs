@@ -13,18 +13,18 @@ namespace LinkDotNet.Blog.UnitTests.Domain
         {
             var level = ProficiencyLevel.Create(key);
 
-            level.Should().NotBeNull();
+            level.ShouldNotBeNull();
         }
 
         [Theory]
         [InlineData("NotALevel")]
         [InlineData("")]
-        [InlineData(null)]
-        public void ShouldNotCreateInvalidLevels(string key)
+        [InlineData(null!)]
+        public void ShouldNotCreateInvalidLevels(string? key)
         {
-            Action act = () => ProficiencyLevel.Create(key);
+            Action act = () => ProficiencyLevel.Create(key!);
 
-            act.Should().Throw<Exception>();
+            act.ShouldThrow<Exception>();
         }
     }
 }

@@ -6,20 +6,13 @@ namespace LinkDotNet.Blog.Domain;
 [DebuggerDisplay("{Content} with sort order {SortOrder}")]
 public sealed class ProfileInformationEntry : Entity
 {
-    private ProfileInformationEntry()
-    {
-    }
-
-    public string Content { get; private set; }
+    public string Content { get; private init; } = default!;
 
     public int SortOrder { get; set; }
 
     public static ProfileInformationEntry Create(string key, int sortOrder)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentNullException(nameof(key));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         return new ProfileInformationEntry
         {

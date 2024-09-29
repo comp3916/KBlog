@@ -7,6 +7,7 @@ using LinkDotNet.Blog.Web.Features.Components;
 using LinkDotNet.Blog.Web.Features.Home;
 using LinkDotNet.Blog.Web.Features.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Features.Home;
 
@@ -19,17 +20,17 @@ public class IndexTests : SqlDatabaseTestBase<BlogPost>
         var newestBlogPost = new BlogPostBuilder().WithTitle("New").Build();
         await Repository.StoreAsync(oldestBlogPost);
         await Repository.StoreAsync(newestBlogPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
-        var cut = ctx.RenderComponent<Index>();
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        var cut = ctx.Render<Index>();
+        cut.WaitForElement(".blog-card");
 
         var blogPosts = cut.FindComponents<ShortBlogPost>();
 
-        blogPosts.Should().HaveCount(2);
-        blogPosts[0].Find(".description h1").InnerHtml.Should().Be("New");
-        blogPosts[1].Find(".description h1").InnerHtml.Should().Be("Old");
+        blogPosts.Count.ShouldBe(2);
+        blogPosts[0].Find(".description h1").InnerHtml.ShouldBe("New");
+        blogPosts[1].Find(".description h1").InnerHtml.ShouldBe("Old");
     }
 
     [Fact]
@@ -39,47 +40,47 @@ public class IndexTests : SqlDatabaseTestBase<BlogPost>
         var unpublishedPost = new BlogPostBuilder().WithTitle("Not published").IsPublished(false).Build();
         await Repository.StoreAsync(publishedPost);
         await Repository.StoreAsync(unpublishedPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
-        var cut = ctx.RenderComponent<Index>();
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        var cut = ctx.Render<Index>();
+        cut.WaitForElement(".blog-card");
 
         var blogPosts = cut.FindComponents<ShortBlogPost>();
 
-        blogPosts.Should().HaveCount(1);
-        blogPosts[0].Find(".description h1").InnerHtml.Should().Be("Published");
+        blogPosts.ShouldHaveSingleItem();
+        blogPosts[0].Find(".description h1").InnerHtml.ShouldBe("Published");
     }
 
     [Fact]
     public async Task ShouldOnlyLoadTenEntities()
     {
         await CreatePublishedBlogPosts(11);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
-        var cut = ctx.RenderComponent<Index>();
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        var cut = ctx.Render<Index>();
+        cut.WaitForElement(".blog-card");
 
         var blogPosts = cut.FindComponents<ShortBlogPost>();
 
-        blogPosts.Count.Should().Be(10);
+        blogPosts.Count.ShouldBe(10);
     }
 
     [Fact]
     public async Task ShouldLoadOnlyItemsInPage()
     {
         await CreatePublishedBlogPosts(11);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
 
-        var cut = ctx.RenderComponent<Index>(
+        var cut = ctx.Render<Index>(
             p => p.Add(s => s.Page, 2));
 
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        cut.WaitForElement(".blog-card");
         var blogPosts = cut.FindComponents<ShortBlogPost>();
-        blogPosts.Should().HaveCount(1);
+        blogPosts.ShouldHaveSingleItem();
     }
 
     [Fact]
@@ -91,19 +92,19 @@ public class IndexTests : SqlDatabaseTestBase<BlogPost>
             .WithTags("C Sharp", "Tag2")
             .Build();
         await Repository.StoreAsync(publishedPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
-        var cut = ctx.RenderComponent<Index>();
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
+        var cut = ctx.Render<Index>();
+        cut.WaitForElement(".blog-card");
 
         var tags = cut.FindComponent<ShortBlogPost>().FindAll(".goto-tag");
 
-        tags.Should().HaveCount(2);
-        tags.Select(t => t.TextContent).Should().Contain("C Sharp");
-        tags.Select(t => t.TextContent).Should().Contain("Tag2");
-        tags.Select(t => t.Attributes.Single(a => a.Name == "href").Value).Should().Contain("/searchByTag/C%20Sharp");
-        tags.Select(t => t.Attributes.Single(a => a.Name == "href").Value).Should().Contain("/searchByTag/Tag2");
+        tags.Count.ShouldBe(2);
+        tags.Select(t => t.TextContent).ShouldContain("C Sharp");
+        tags.Select(t => t.TextContent).ShouldContain("Tag2");
+        tags.Select(t => t.Attributes.Single(a => a.Name == "href").Value).ShouldContain("/searchByTag/C%20Sharp");
+        tags.Select(t => t.Attributes.Single(a => a.Name == "href").Value).ShouldContain("/searchByTag/Tag2");
     }
 
     [Theory]
@@ -111,47 +112,45 @@ public class IndexTests : SqlDatabaseTestBase<BlogPost>
     [InlineData("http://localhost/relative/url", "http://localhost/relative/url")]
     public void ShouldSetAbsoluteUriForOgData(string givenUri, string expectedUri)
     {
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         RegisterComponents(ctx, givenUri);
 
-        var cut = ctx.RenderComponent<Index>();
+        var cut = ctx.Render<Index>();
 
-        cut.WaitForState(() => cut.FindComponents<OgData>().Any());
-        cut.FindComponent<OgData>().Instance.AbsolutePreviewImageUrl.Should().Be(expectedUri);
+        cut.WaitForComponent<OgData>().Instance.AbsolutePreviewImageUrl.ShouldBe(expectedUri);
     }
 
     [Theory]
-    [InlineData(null)]
+    [InlineData(null!)]
     [InlineData(0)]
     [InlineData(-1)]
     public async Task ShouldSetPageToFirstIfOutOfRange(int? page)
     {
         await CreatePublishedBlogPosts(11);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
 
-        var cut = ctx.RenderComponent<Index>(p => p.Add(
+        var cut = ctx.Render<Index>(p => p.Add(
             i => i.Page, page));
 
-        cut.WaitForState(() => cut.FindAll(".blog-card").Any());
-        cut.FindAll(".blog-card").Count.Should().Be(10);
+        cut.WaitForElement(".blog-card");
+        cut.FindAll(".blog-card").Count.ShouldBe(10);
     }
 
-    private static AppConfiguration CreateSampleAppConfiguration(string profilePictureUri = null)
+    private static (ApplicationConfiguration ApplicationConfiguration, Introduction Introduction)
+        CreateSampleAppConfiguration(string? profilePictureUri = null)
     {
-        return new()
-        {
-            BlogName = string.Empty,
-            Introduction = new Introduction
+        return (new ApplicationConfigurationBuilder()
+                .WithBlogName(string.Empty)
+                .WithBlogPostsPerPage(10)
+                .Build(),
+            new Introduction
             {
                 Description = string.Empty,
                 BackgroundUrl = string.Empty,
                 ProfilePictureUrl = profilePictureUri ?? string.Empty,
-            },
-            Social = new Social(),
-            BlogPostsPerPage = 10,
-        };
+            });
     }
 
     private async Task CreatePublishedBlogPosts(int amount)
@@ -163,11 +162,11 @@ public class IndexTests : SqlDatabaseTestBase<BlogPost>
         }
     }
 
-    private void RegisterComponents(TestContextBase ctx, string profilePictureUri = null)
+    private void RegisterComponents(BunitContext ctx, string? profilePictureUri = null)
     {
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => CreateSampleAppConfiguration(profilePictureUri));
-        ctx.Services.AddScoped(_ => Mock.Of<IUserRecordService>());
-        ctx.Services.AddMemoryCache();
+        ctx.Services.AddScoped(_ => Options.Create(CreateSampleAppConfiguration(profilePictureUri).ApplicationConfiguration));
+        ctx.Services.AddScoped(_ => Options.Create(CreateSampleAppConfiguration(profilePictureUri).Introduction));
+        ctx.Services.AddScoped(_ => Substitute.For<ICacheTokenProvider>());
     }
 }

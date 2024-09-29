@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using LinkDotNet.Blog.Domain;
@@ -44,12 +45,12 @@ public sealed class SitemapService : ISitemapService
         await xmlFileWriter.WriteObjectToXmlFileAsync(sitemap, "wwwroot/sitemap.xml");
     }
 
-    private IEnumerable<SitemapUrl> CreateUrlsForBlogPosts(IEnumerable<BlogPost> blogPosts)
+    private ImmutableArray<SitemapUrl> CreateUrlsForBlogPosts(IEnumerable<BlogPost> blogPosts)
     {
         return blogPosts.Select(b => new SitemapUrl
         {
             Location = $"{navigationManager.BaseUri}blogPost/{b.Id}",
-            LastModified = b.UpdatedDate.ToString("yyyy-MM-dd"),
+            LastModified = b.UpdatedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         }).ToImmutableArray();
     }
 
@@ -57,7 +58,6 @@ public sealed class SitemapService : ISitemapService
     {
         return blogPosts
             .SelectMany(b => b.Tags)
-            .Select(t => t.Content)
             .Distinct()
             .Select(t => new SitemapUrl
             {

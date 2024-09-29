@@ -1,30 +1,30 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LinkDotNet.Blog.Domain;
 
-public sealed class BlogPost : Entity
+public sealed partial class BlogPost : Entity
 {
-    private BlogPost()
-    {
-    }
+    public string Title { get; private set; } = default!;
 
-    public string Title { get; private set; }
+    public string ShortDescription { get; private set; } = default!;
 
-    public string ShortDescription { get; private set; }
+    public string Content { get; private set; } = default!;
 
-    public string Content { get; private set; }
+    public string PreviewImageUrl { get; private set; } = default!;
 
-    public string PreviewImageUrl { get; private set; }
-
-    public string PreviewImageUrlFallback { get; private set; }
+    public string? PreviewImageUrlFallback { get; private set; }
 
     public DateTime UpdatedDate { get; private set; }
 
     public DateTime? ScheduledPublishDate { get; private set; }
 
-    public ICollection<Tag> Tags { get; private set; }
+    public IList<string> Tags { get; private set; } = [];
 
     public bool IsPublished { get; private set; }
 
@@ -32,7 +32,56 @@ public sealed class BlogPost : Entity
 
     public bool IsScheduled => ScheduledPublishDate is not null;
 
-    public string TagsAsString => Tags is null ? string.Empty : string.Join(", ", Tags.Select(t => t.Content));
+    public string TagsAsString => string.Join(",", Tags);
+
+    public int ReadingTimeInMinutes { get; private set; }
+
+    public string Slug => GenerateSlug();
+
+    private string GenerateSlug()
+    {
+        if (string.IsNullOrWhiteSpace(Title))
+        {
+            return Title;
+        }
+
+        var normalizedTitle = Title.Normalize(NormalizationForm.FormD);
+        var stringBuilder = new StringBuilder();
+
+        foreach (var c in normalizedTitle.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark))
+        {
+            stringBuilder.Append(c);
+        }
+
+        var cleanTitle = stringBuilder
+            .ToString()
+            .Normalize(NormalizationForm.FormC)
+            .ToLower(CultureInfo.CurrentCulture);
+
+        cleanTitle = MatchIfSpecialCharactersExist().Replace(cleanTitle, "");
+        cleanTitle = MatchIfAdditionalSpacesExist().Replace(cleanTitle, " ");
+        cleanTitle = MatchIfSpaceExist().Replace(cleanTitle, "-");
+
+        return cleanTitle.Trim();
+    }
+
+    [GeneratedRegex(
+       @"[^A-Za-z0-9\s]",
+       RegexOptions.CultureInvariant,
+       matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MatchIfSpecialCharactersExist();
+
+    [GeneratedRegex(
+       @"\s+",
+       RegexOptions.CultureInvariant,
+       matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MatchIfAdditionalSpacesExist();
+
+    [GeneratedRegex(
+       @"\s",
+       RegexOptions.CultureInvariant,
+       matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MatchIfSpaceExist();
 
     public static BlogPost Create(
         string title,
@@ -42,8 +91,8 @@ public sealed class BlogPost : Entity
         bool isPublished,
         DateTime? updatedDate = null,
         DateTime? scheduledPublishDate = null,
-        IEnumerable<string> tags = null,
-        string previewImageUrlFallback = null)
+        IEnumerable<string>? tags = null,
+        string? previewImageUrlFallback = null)
     {
         if (scheduledPublishDate is not null && isPublished)
         {
@@ -62,7 +111,8 @@ public sealed class BlogPost : Entity
             PreviewImageUrl = previewImageUrl,
             PreviewImageUrlFallback = previewImageUrlFallback,
             IsPublished = isPublished,
-            Tags = tags?.Select(Tag.Create).ToList(),
+            Tags = tags?.Select(t => t.Trim()).ToImmutableArray() ?? [],
+            ReadingTimeInMinutes = ReadingTimeCalculator.CalculateReadingTime(content),
         };
 
         return blogPost;
@@ -76,6 +126,8 @@ public sealed class BlogPost : Entity
 
     public void Update(BlogPost from)
     {
+        ArgumentNullException.ThrowIfNull(from);
+
         if (from == this)
         {
             return;
@@ -89,22 +141,7 @@ public sealed class BlogPost : Entity
         PreviewImageUrl = from.PreviewImageUrl;
         PreviewImageUrlFallback = from.PreviewImageUrlFallback;
         IsPublished = from.IsPublished;
-        ReplaceTags(from.Tags);
-    }
-
-    private void ReplaceTags(IEnumerable<Tag> tags)
-    {
-        Tags?.Clear();
-        if (Tags == null || tags == null)
-        {
-            Tags = tags?.ToList();
-        }
-        else
-        {
-            foreach (var tag in tags)
-            {
-                Tags.Add(tag);
-            }
-        }
+        Tags = from.Tags;
+        ReadingTimeInMinutes = from.ReadingTimeInMinutes;
     }
 }

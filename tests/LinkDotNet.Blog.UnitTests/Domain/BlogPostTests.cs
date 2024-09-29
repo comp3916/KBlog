@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using LinkDotNet.Blog.Domain;
 using LinkDotNet.Blog.TestUtilities;
@@ -12,18 +12,40 @@ public class BlogPostTests
     {
         var blogPostToUpdate = new BlogPostBuilder().Build();
         blogPostToUpdate.Id = "random-id";
-        var blogPost = BlogPost.Create("Title", "Desc", "Content", "Url", true, previewImageUrlFallback: "Url2");
+        var blogPost = BlogPost.Create("Title", "Desc", "Other Content", "Url", true, previewImageUrlFallback: "Url2");
         blogPost.Id = "something else";
 
         blogPostToUpdate.Update(blogPost);
 
-        blogPostToUpdate.Title.Should().Be("Title");
-        blogPostToUpdate.ShortDescription.Should().Be("Desc");
-        blogPostToUpdate.Content.Should().Be("Content");
-        blogPostToUpdate.PreviewImageUrl.Should().Be("Url");
-        blogPostToUpdate.PreviewImageUrlFallback.Should().Be("Url2");
-        blogPostToUpdate.IsPublished.Should().BeTrue();
-        blogPostToUpdate.Tags.Should().BeNullOrEmpty();
+        blogPostToUpdate.Title.ShouldBe("Title");
+        blogPostToUpdate.ShortDescription.ShouldBe("Desc");
+        blogPostToUpdate.Content.ShouldBe("Other Content");
+        blogPostToUpdate.PreviewImageUrl.ShouldBe("Url");
+        blogPostToUpdate.PreviewImageUrlFallback.ShouldBe("Url2");
+        blogPostToUpdate.IsPublished.ShouldBeTrue();
+        blogPostToUpdate.Tags.ShouldBeEmpty();
+        blogPostToUpdate.Slug.ShouldNotBeNull();
+        blogPostToUpdate.ReadingTimeInMinutes.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("blog title","blog-title")]
+    [InlineData("blog      title", "blog-title")]
+    [InlineData("blog +title", "blog-title")]
+    [InlineData("blog/title", "blogtitle")]
+    [InlineData("blog /title", "blog-title")]
+    [InlineData("BLOG TITLE", "blog-title")]
+    [InlineData("àccent", "accent")]
+    [InlineData("get 100$ quick", "get-100-quick")]
+    [InlineData("blog,title", "blogtitle")]
+    [InlineData("blog?!title", "blogtitle")]
+    [InlineData("blog----title", "blogtitle")]
+    [InlineData("überaus gut", "uberaus-gut")]
+    public void ShouldGenerateValidSlug(string title, string expectedSlug)
+    {
+        var blogPost = new BlogPostBuilder().WithTitle(title).Build();
+
+        blogPost.Slug.ShouldBe(expectedSlug);
     }
 
     [Fact]
@@ -36,8 +58,8 @@ public class BlogPostTests
 
         blogPostToUpdate.Update(blogPost);
 
-        blogPostToUpdate.Tags.Should().HaveCount(1);
-        blogPostToUpdate.Tags.Single().Content.Should().Be("tag 2");
+        blogPostToUpdate.Tags.ShouldHaveSingleItem();
+        blogPostToUpdate.Tags.Single().ShouldBe("tag 2");
     }
 
     [Fact]
@@ -45,8 +67,8 @@ public class BlogPostTests
     {
         var blogPost = BlogPost.Create("Title", "Sub", "Content", "Preview", false, tags: new[] { " Tag 1", " Tag 2 ", });
 
-        blogPost.Tags.Select(t => t.Content).Should().Contain("Tag 1");
-        blogPost.Tags.Select(t => t.Content).Should().Contain("Tag 2");
+        blogPost.Tags.ShouldContain("Tag 1");
+        blogPost.Tags.ShouldContain("Tag 2");
     }
 
     [Fact]
@@ -56,7 +78,7 @@ public class BlogPostTests
 
         var blog = BlogPost.Create("1", "2", "3", "4", false, somewhen);
 
-        blog.UpdatedDate.Should().Be(somewhen);
+        blog.UpdatedDate.ShouldBe(somewhen);
     }
 
     [Fact]
@@ -66,8 +88,8 @@ public class BlogPostTests
 
         bp.Update(bp);
 
-        bp.Tags.Should().HaveCount(1);
-        bp.Tags.Single().Content.Should().Be("tag 1");
+        bp.Tags.ShouldHaveSingleItem();
+        bp.Tags.Single().ShouldBe("tag 1");
     }
 
     [Fact]
@@ -78,9 +100,9 @@ public class BlogPostTests
 
         bp.Publish();
 
-        bp.IsPublished.Should().BeTrue();
-        bp.ScheduledPublishDate.Should().BeNull();
-        bp.UpdatedDate.Should().Be(date);
+        bp.IsPublished.ShouldBeTrue();
+        bp.ScheduledPublishDate.ShouldBeNull();
+        bp.UpdatedDate.ShouldBe(date);
     }
 
     [Fact]
@@ -88,7 +110,7 @@ public class BlogPostTests
     {
         Action action = () => BlogPost.Create("1", "2", "3", "4", true, scheduledPublishDate: new DateTime(2023, 3, 24));
 
-        action.Should().Throw<InvalidOperationException>();
+        action.ShouldThrow<InvalidOperationException>();
     }
 
     [Fact]
@@ -99,7 +121,7 @@ public class BlogPostTests
 
         blogPost.Update(bp);
 
-        blogPost.ScheduledPublishDate.Should().Be(new DateTime(2023, 3, 24));
+        blogPost.ScheduledPublishDate.ShouldBe(new DateTime(2023, 3, 24));
     }
 
     [Fact]
@@ -109,7 +131,7 @@ public class BlogPostTests
 
         var bp = BlogPost.Create("1", "2", "3", "4", false, scheduledPublishDate: date);
 
-        bp.UpdatedDate.Should().Be(date);
+        bp.UpdatedDate.ShouldBe(date);
     }
 
     [Fact]
@@ -119,7 +141,7 @@ public class BlogPostTests
 
         var bp = BlogPost.Create("1", "2", "3", "4", false, scheduledPublishDate: date);
 
-        bp.IsScheduled.Should().BeTrue();
+        bp.IsScheduled.ShouldBeTrue();
     }
 
     [Fact]
@@ -129,7 +151,7 @@ public class BlogPostTests
 
         var tags = bp.TagsAsString;
 
-        tags.Should().Be("tag 1, tag 2");
+        tags.ShouldBe("tag 1,tag 2");
     }
 
     [Fact]
@@ -139,6 +161,6 @@ public class BlogPostTests
 
         var tags = bp.TagsAsString;
 
-        tags.Should().BeEmpty();
+        tags.ShouldBeEmpty();
     }
 }

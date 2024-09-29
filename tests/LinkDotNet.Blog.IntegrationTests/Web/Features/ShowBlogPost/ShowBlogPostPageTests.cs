@@ -7,8 +7,12 @@ using LinkDotNet.Blog.Web.Features.Components;
 using LinkDotNet.Blog.Web.Features.Services;
 using LinkDotNet.Blog.Web.Features.ShowBlogPost;
 using LinkDotNet.Blog.Web.Features.ShowBlogPost.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using NCronJob;
+using TestContext = Xunit.TestContext;
 
 namespace LinkDotNet.Blog.IntegrationTests.Web.Features.ShowBlogPost;
 
@@ -19,19 +23,19 @@ public class ShowBlogPostPageTests : SqlDatabaseTestBase<BlogPost>
     {
         var publishedPost = new BlogPostBuilder().WithLikes(2).IsPublished().Build();
         await Repository.StoreAsync(publishedPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterComponents(ctx);
-        ctx.AddTestAuthorization().SetAuthorized("s");
-        var cut = ctx.RenderComponent<ShowBlogPostPage>(
+        ctx.AddAuthorization().SetAuthorized("s");
+        var cut = ctx.Render<ShowBlogPostPage>(
             p => p.Add(b => b.BlogPostId, publishedPost.Id));
         var likeComponent = cut.FindComponent<Like>();
-        likeComponent.SetParametersAndRender(c => c.Add(p => p.BlogPost, publishedPost));
+        likeComponent.Render(c => c.Add(p => p.BlogPost, publishedPost));
 
         likeComponent.Find("span").Click();
 
-        var fromDb = await DbContext.BlogPosts.AsNoTracking().SingleAsync(d => d.Id == publishedPost.Id);
-        fromDb.Likes.Should().Be(3);
+        var fromDb = await DbContext.BlogPosts.AsNoTracking().SingleAsync(d => d.Id == publishedPost.Id, TestContext.Current.CancellationToken);
+        fromDb.Likes.ShouldBe(3);
     }
 
     [Fact]
@@ -39,23 +43,23 @@ public class ShowBlogPostPageTests : SqlDatabaseTestBase<BlogPost>
     {
         var publishedPost = new BlogPostBuilder().WithLikes(2).IsPublished().Build();
         await Repository.StoreAsync(publishedPost);
-        using var ctx = new TestContext();
-        var localStorage = new Mock<ILocalStorageService>();
+        using var ctx = new BunitContext();
+        var localStorage = Substitute.For<ILocalStorageService>();
         var hasLikedStorage = $"hasLiked/{publishedPost.Id}";
-        localStorage.Setup(l => l.ContainKeyAsync(hasLikedStorage)).ReturnsAsync(true);
-        localStorage.Setup(l => l.GetItemAsync<bool>(hasLikedStorage)).ReturnsAsync(true);
+        localStorage.ContainKeyAsync(hasLikedStorage).Returns(true);
+        localStorage.GetItemAsync<bool>(hasLikedStorage).Returns(true);
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        RegisterComponents(ctx, localStorage.Object);
-        ctx.AddTestAuthorization().SetAuthorized("s");
-        var cut = ctx.RenderComponent<ShowBlogPostPage>(
+        RegisterComponents(ctx, localStorage);
+        ctx.AddAuthorization().SetAuthorized("s");
+        var cut = ctx.Render<ShowBlogPostPage>(
             p => p.Add(b => b.BlogPostId, publishedPost.Id));
         var likeComponent = cut.FindComponent<Like>();
-        likeComponent.SetParametersAndRender(c => c.Add(p => p.BlogPost, publishedPost));
+        likeComponent.Render(c => c.Add(p => p.BlogPost, publishedPost));
 
         likeComponent.Find("span").Click();
 
-        var fromDb = await DbContext.BlogPosts.AsNoTracking().SingleAsync(d => d.Id == publishedPost.Id);
-        fromDb.Likes.Should().Be(1);
+        var fromDb = await DbContext.BlogPosts.AsNoTracking().SingleAsync(d => d.Id == publishedPost.Id, TestContext.Current.CancellationToken);
+        fromDb.Likes.ShouldBe(1);
     }
 
     [Fact]
@@ -63,24 +67,62 @@ public class ShowBlogPostPageTests : SqlDatabaseTestBase<BlogPost>
     {
         var publishedPost = new BlogPostBuilder().IsPublished().WithTags("Tag1,Tag2").Build();
         await Repository.StoreAsync(publishedPost);
-        using var ctx = new TestContext();
+        using var ctx = new BunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-        ctx.AddTestAuthorization();
+        ctx.AddAuthorization();
         RegisterComponents(ctx);
-        var cut = ctx.RenderComponent<ShowBlogPostPage>(
+        var cut = ctx.Render<ShowBlogPostPage>(
             p => p.Add(b => b.BlogPostId, publishedPost.Id));
 
         var ogData = cut.FindComponent<OgData>();
 
-        ogData.Instance.Keywords.Should().Be("Tag1,Tag2");
+        ogData.Instance.Keywords.ShouldBe("Tag1,Tag2");
     }
 
-    private void RegisterComponents(TestContextBase ctx, ILocalStorageService localStorageService = null)
+    [Fact]
+    public async Task ShouldSetStructuredData()
+    {
+        var post = new BlogPostBuilder()
+            .WithTitle("Title")
+            .WithPreviewImageUrl("image1")
+            .WithPreviewImageUrlFallback("image2")
+            .Build();
+        await Repository.StoreAsync(post);
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        ctx.AddAuthorization();
+        RegisterComponents(ctx);
+        ctx.ComponentFactories.AddStub<HeadContent>(ps => ps.Get(p => p.ChildContent)!);
+        var cut = ctx.Render<ShowBlogPostPage>(
+            p => p.Add(b => b.BlogPostId, post.Id));
+
+        var structuredData = cut.FindComponent<StructuredData>();
+
+        structuredData.Instance.Headline.ShouldBe("Title");
+        structuredData.Instance.PreviewImage.ShouldBe("image1");
+        structuredData.Instance.PreviewFallbackImage.ShouldBe("image2");
+    }
+
+    [Fact]
+    public void ShouldShowErrorPageWhenBlogPostNotFound()
+    {
+        using var ctx = new BunitContext();
+        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        RegisterComponents(ctx);
+
+        var cut = ctx.Render<ShowBlogPostPage>();
+
+        cut.FindAll(".blogpost-content").ShouldBeEmpty();
+        cut.FindAll("#no-blog-post-error").ShouldHaveSingleItem();
+    }
+
+    private void RegisterComponents(BunitContext ctx, ILocalStorageService? localStorageService = null)
     {
         ctx.Services.AddScoped(_ => Repository);
-        ctx.Services.AddScoped(_ => localStorageService ?? Mock.Of<ILocalStorageService>());
-        ctx.Services.AddScoped(_ => Mock.Of<IToastService>());
-        ctx.Services.AddScoped(_ => Mock.Of<IUserRecordService>());
-        ctx.Services.AddScoped(_ => new AppConfiguration());
+        ctx.Services.AddScoped(_ => localStorageService ?? Substitute.For<ILocalStorageService>());
+        ctx.Services.AddScoped(_ => Substitute.For<IToastService>());
+        ctx.Services.AddScoped(_ => Substitute.For<IUserRecordService>());
+        ctx.Services.AddScoped(_ => Options.Create(new ApplicationConfigurationBuilder().Build()));
+        ctx.Services.AddScoped(_ => Substitute.For<IInstantJobRegistry>());
     }
 }

@@ -10,10 +10,10 @@ public class TalkTests
     {
         var talk = Talk.Create(" title ", " place ", " desc ", new DateTime(2022, 10, 2));
 
-        talk.PresentationTitle.Should().Be("title");
-        talk.Place.Should().Be("place");
-        talk.Description.Should().Be("desc");
-        talk.PublishedDate.Should().Be(new DateTime(2022, 10, 2));
+        talk.PresentationTitle.ShouldBe("title");
+        talk.Place.ShouldBe("place");
+        talk.Description.ShouldBe("desc");
+        talk.PublishedDate.ShouldBe(new DateTime(2022, 10, 2));
     }
 
     [Theory]
@@ -26,10 +26,10 @@ public class TalkTests
     [InlineData("title", "place", null)]
     [InlineData("title", "place", "")]
     [InlineData("title", "place", " ")]
-    public void TalkWithInvalidInvariantShouldNotBeCreated(string title, string place, string desc)
+    public void TalkWithInvalidInvariantShouldNotBeCreated(string? title, string? place, string? desc)
     {
-        Action act = () => Talk.Create(title, place, desc, DateTime.MinValue);
+        Action act = () => Talk.Create(title!, place!, desc!, DateTime.MinValue);
 
-        act.Should().Throw<Exception>();
+        act.ShouldThrow<Exception>();
     }
 }

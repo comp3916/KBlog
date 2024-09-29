@@ -1,6 +1,8 @@
 ﻿using System.Linq;
 using Blazored.Toast.Services;
 using LinkDotNet.Blog.Domain;
+using LinkDotNet.Blog.TestUtilities;
+using LinkDotNet.Blog.TestUtilities.Fakes;
 using LinkDotNet.Blog.Web;
 using LinkDotNet.Blog.Web.Features.AboutMe;
 using LinkDotNet.Blog.Web.Features.AboutMe.Components;
@@ -9,75 +11,86 @@ using LinkDotNet.Blog.Web.Features.AboutMe.Components.Talk;
 using LinkDotNet.Blog.Web.Features.Components;
 using LinkDotNet.Blog.Web.Features.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LinkDotNet.Blog.UnitTests.Web.Features.AboutMe;
 
-public class AboutMePageTests : TestContext
+public class AboutMePageTests : BunitContext
 {
+    public AboutMePageTests()
+    {
+        ComponentFactories.Add<MarkdownTextArea, MarkdownFake>();
+    }
+    
     [Fact]
     public void ShouldPassIsAuthenticated()
     {
-        this.AddTestAuthorization().SetAuthorized("test");
-        var config = CreateAppConfiguration(new ProfileInformation { ProfilePictureUrl = string.Empty });
-        SetupMocks(config);
+        AddAuthorization().SetAuthorized("test");
+        var config = new ProfileInformationBuilder().Build();
+        
+        var applicationConfiguration = new ApplicationConfigurationBuilder()
+            .WithIsAboutMeEnabled(true)
+            .Build();
+        
+        SetupMocks(config, applicationConfiguration);
 
-        var cut = RenderComponent<AboutMePage>();
+        var cut = Render<AboutMePage>();
 
-        cut.FindComponent<Profile>().Instance.ShowAdminActions.Should().BeTrue();
-        cut.FindComponent<SkillTable>().Instance.ShowAdminActions.Should().BeTrue();
-        cut.FindComponent<Talks>().Instance.ShowAdminActions.Should().BeTrue();
+        cut.FindComponent<Profile>().Instance.ShowAdminActions.ShouldBeTrue();
+        cut.FindComponent<SkillTable>().Instance.ShowAdminActions.ShouldBeTrue();
+        cut.FindComponent<Talks>().Instance.ShowAdminActions.ShouldBeTrue();
     }
 
     [Fact]
     public void ShouldNotShowWhenEnabledFalse()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
-        var config = CreateAppConfiguration();
-        SetupMocks(config);
+        AddAuthorization().SetNotAuthorized();
+        var config = new ProfileInformationBuilder().Build();
+        
+        var applicationConfiguration = new ApplicationConfigurationBuilder()
+            .WithIsAboutMeEnabled(false)
+            .Build();
+        
+        SetupMocks(config, applicationConfiguration);
 
-        var cut = RenderComponent<AboutMePage>();
+        var cut = Render<AboutMePage>();
 
-        cut.FindComponents<Profile>().Any().Should().BeFalse();
-        cut.FindComponents<SkillTable>().Any().Should().BeFalse();
+        cut.FindComponents<Profile>().Any().ShouldBeFalse();
+        cut.FindComponents<SkillTable>().Any().ShouldBeFalse();
     }
 
     [Fact]
     public void ShouldSetOgData()
     {
-        this.AddTestAuthorization().SetNotAuthorized();
-        var profileInformation = new ProfileInformation
-        {
-            Name = "My Name",
-            ProfilePictureUrl = "someurl",
-        };
-        var config = CreateAppConfiguration(profileInformation);
-        SetupMocks(config);
+        AddAuthorization().SetNotAuthorized();
+        var profileInformation = new ProfileInformationBuilder()
+            .WithName("My Name")
+            .WithProfilePictureUrl("someurl")
+            .Build();
+        var applicationConfiguration = new ApplicationConfigurationBuilder()
+            .WithIsAboutMeEnabled(true)
+            .Build();
+        SetupMocks(profileInformation, applicationConfiguration);
 
-        var cut = RenderComponent<AboutMePage>();
+        var cut = Render<AboutMePage>();
 
         var ogData = cut.FindComponent<OgData>().Instance;
-        ogData.AbsolutePreviewImageUrl.Should().Be("http://localhost/someurl");
-        ogData.Keywords.Should().Contain("My Name");
-        ogData.Title.Should().Contain("About Me - My Name");
-        ogData.Description.Should().Contain("About Me,My Name");
+        ogData.AbsolutePreviewImageUrl.ShouldBe("http://localhost/someurl");
+        ogData.Keywords.ShouldNotBeNull();
+        ogData.Keywords.ShouldContain("My Name");
+        ogData.Title.ShouldContain("About Me - My Name");
+        ogData.Description.ShouldNotBeNull();
+        ogData.Description.ShouldContain("About Me,My Name");
     }
 
-    private static AppConfiguration CreateAppConfiguration(ProfileInformation info = null)
+    private void SetupMocks(ProfileInformation config, ApplicationConfiguration applicationConfiguration)
     {
-        return new AppConfiguration
-        {
-            ProfileInformation = info,
-        };
-    }
-
-    private void SetupMocks(AppConfiguration config)
-    {
-        Services.AddScoped(_ => config);
-        Services.AddScoped(_ => Mock.Of<IUserRecordService>());
-        Services.AddScoped(_ => Mock.Of<ISortOrderCalculator>());
+        Services.AddScoped(_ => Options.Create(config));
+        Services.AddScoped(_ => Options.Create(applicationConfiguration));
+        Services.AddScoped(_ => Substitute.For<ISortOrderCalculator>());
         Services.RegisterRepositoryWithEmptyReturn<ProfileInformationEntry>();
         Services.RegisterRepositoryWithEmptyReturn<Skill>();
         Services.RegisterRepositoryWithEmptyReturn<Talk>();
-        Services.AddScoped(_ => Mock.Of<IToastService>());
+        Services.AddScoped(_ => Substitute.For<IToastService>());
     }
 }
